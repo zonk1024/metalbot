@@ -45,7 +45,6 @@ class MetalBot(botlib.Bot):
     def __actions__(self):
         botlib.Bot.__actions__(self)
  
-        # Create a Hello World responder/command
         if botlib.check_found(self.data, "!metalbot"):
             if self._process_cmd(self.data):
                 fn = getattr(self, self.command + "_action")
@@ -54,10 +53,10 @@ class MetalBot(botlib.Bot):
                 except ConnectionError:
                     self._reconnect()
 
-#                try:
-                fn(self.args)
-#                except AttributeError:
-#                    self.protocol.privmsg(self.channel, "Sorry, '{0}' means nothing to me".format(self.command))
+                try:
+                    fn(self.args)
+                except AttributeError:
+                    self.protocol.privmsg(self.channel, "Sorry, '{0}' means nothing to me".format(self.command))
 
 
     def hello_action(self, args):
@@ -121,6 +120,16 @@ class MetalBot(botlib.Bot):
 
         id = args[0]
         cur = self.db.cursor()
+        cur.execute("INSERT INTO queue (songid, username) VALUES (?, ?)", (id, self.username));
+        self.db.commit()
+
+        self._requeue()
+
+
+    def _requeue(self):
+        cur.execute("SELECT filename FROM queue INNER JOIN songlist ON songlist.id=queue.songid ORDER BY queue.id")
+        while 
+
         cur.execute("SELECT filename FROM songlist WHERE id=?", (id,))
         filename = cur.fetchone()[0]
         songs = self.mpc.playlistfind("filename", filename)
@@ -135,9 +144,9 @@ class MetalBot(botlib.Bot):
             self.protocol.privmsg(self.username, "\m/ ANDY'S METAL BOT - THE QUICKEST WAY TO GO DEAF ON #parthenon_devs \m/")
             self.protocol.privmsg(self.username, "!metalbot playing - displays current track with ID")
             self.protocol.privmsg(self.username, "!metalbot next - plays next track")
-            self.protocol.privmsg(self.username, "!metalbot [up|down|neutral]vote <songid> - adds your thumbs-up, down, neutral vote to this song")
+            self.protocol.privmsg(self.username, "!metalbot <up|down|neutral>vote <songid> - adds your thumbs-up, down, neutral vote to this song")
             sleep(1)
-            self.protocol.privmsg(self.username, "!metalbot find [artist|album|song] <title> - finds music and PMs you")
+            self.protocol.privmsg(self.username, "!metalbot find <artist|album|song|any> <title> - finds music and PMs you")
             self.protocol.privmsg(self.username, "!metalbot queue <songid> - queues the specified song for playing next")
         
         
