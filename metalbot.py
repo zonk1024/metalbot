@@ -167,6 +167,7 @@ class MetalBot(botlib.Bot):
             sleep(1) # Antiflood
             self.protocol.privmsg(self.username, "!metalbot find <artist|album|song|any> <title> - finds music and PMs you")
             self.protocol.privmsg(self.username, "!metalbot queue <songid> - queues the specified song for playing next")
+            self.protocol.privmsg(self.username, "Stream URL ---> http://andy.internal:8000")
 
     # I make a new DB connection every time because you can't reuse the same one in multiple threads
     def _update_status(self):
