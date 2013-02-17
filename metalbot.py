@@ -30,13 +30,21 @@ class MetalBot(botlib.Bot):
     def initialize_db(self):
         print "Start initialize of DB...getting songs"
         songs = self.mpc.listallinfo()
+        loaded_songs = []
+
         cur = self.db.cursor()
+        cur.execute("SELECT filename FROM songlist")
+        while True:
+            row = cur.fetchone()
+            if row is None:
+                break
+
+            loaded_songs.append(row[0])
+        
         print "Start iteration..."
-        # This iteration blows, rewrite.
         for song in songs:
             if "file" in song and "title" in song:
-                cur.execute("SELECT COUNT(*) FROM songlist WHERE filename=?", (song["file"], ))
-                if cur.fetchone()[0] == 0:
+                if song["file"] not in loaded_songs:
                     print "Inserting %s" % song["file"]
                     cur.execute("INSERT INTO songlist (filename, artist, album, title) VALUES (?,?,?,?)", \
                             (song["file"], song["artist"], song["album"], song["title"]))
@@ -49,33 +57,34 @@ class MetalBot(botlib.Bot):
         self.mpc.connect(MPD_SERVER, MPD_PORT)
 
     def _process_cmd(self, data):
-        m = re.search(r"^:([^!]+)!.*:!metalbot (\w+)(?: ([^\r\n]*))?", data)
-        if m:
-            self.username = m.group(1)
-            self.command = m.group(2).lower()
-            if m.group(3) is not None:
-                self.args = m.group(3).split(" ")
-            else:
-                self.args = []
-            return True
-        else:
-            return False
+        for reg in [r"^:([^!]+)!.*:!metalbot (\w+)(?: ([^\r\n]*))?", 
+                    r"^:([^!]+)!.*PRIVMSG {0} :(\w+)(?: ([^\r\n]*))?".format(NICK),
+                    ]:
+            m = re.search(reg, data)
+            if m:
+                self.username = m.group(1)
+                self.command = m.group(2).lower()
+                if m.group(3) is not None:
+                    self.args = m.group(3).split(" ")
+                else:
+                    self.args = []
+                return True
+        return False
 
     def __actions__(self):
         botlib.Bot.__actions__(self)
  
-        if botlib.check_found(self.data, "!metalbot"):
-            if self._process_cmd(self.data):
-                try:
-                    self.mpc.status()
-                except ConnectionError:
-                    self._reconnect()
+        if self._process_cmd(self.data):
+            try:
+                self.mpc.status()
+            except ConnectionError:
+                self._reconnect()
 
-                try:
-                    fn = getattr(self, self.command + "_action")
-                    fn(self.args)
-                except AttributeError:
-                    self.protocol.privmsg(self.channel, "Sorry, '{0}' means nothing to me".format(self.command))
+            try:
+                fn = getattr(self, self.command + "_action")
+                fn(self.args)
+            except AttributeError:
+                self.protocol.privmsg(self.channel, "Sorry, '{0}' means nothing to me".format(self.command))
 
     def _getsongid(self, filename):
         db = sqlite3.connect(DB)
@@ -122,6 +131,16 @@ class MetalBot(botlib.Bot):
         cur = self.db.cursor()
         cur.execute("INSERT OR REPLACE INTO votes (id, username, val) VALUES (?, ?, ?)", (args[0], self.username, vote,))
         self.db.commit()
+        cur.execute("SELECT artist, title FROM songlist WHERE id=?", (args[0],))
+        row = cur.fetchone()
+        if row is not None:
+            if vote == -1:
+                s = "a downvote"
+            elif vote == 1:
+                s = "an upvote"
+            else:
+                s = "an abstention"
+            self.protocol.privmsg(self.channel, "Recorded {0} from {1}, for [{2}]: {3} {4}".format(s, self.username, args[0], row[0], row[1]))
 
     def find_action(self, args):
         if len(args) < 2:
@@ -178,7 +197,7 @@ class MetalBot(botlib.Bot):
     def help_action(self, args):
             self.protocol.privmsg(self.username, "\m/ ANDY'S METAL BOT - THE QUICKEST WAY TO GO DEAF ON #parthenon_devs \m/")
             self.protocol.privmsg(self.username, "!metalbot playing - displays current track with ID")
-            self.protocol.privmsg(self.username, "!metalbot next - plays next track")
+            self.protocol.privmsg(self.username, "!metalbot next - displays next track")
             self.protocol.privmsg(self.username, "!metalbot <up|down|neutral>vote <songid> - adds your thumbs-up, down, neutral vote to this song")
             sleep(1) # Antiflood
             self.protocol.privmsg(self.username, "!metalbot find <artist|album|song|any> <title> - finds music and PMs you")
@@ -221,5 +240,8 @@ if __name__ == "__main__":
     interface_thread = threading.Thread(target=bot.thread_listener)
     interface_thread.start()
 
-    bot.run()
-
+    try:
+        bot.run()
+    except Exception as e:
+        bot.quit = True
+        raise e
