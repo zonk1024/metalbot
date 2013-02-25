@@ -15,13 +15,24 @@ div.evil
     padding-left: 10px;
 }
 
+.cover
+{
+    width: 100px;
+    height: 100px;
+}
+
 </style>
 </head>
 <body>
 <h2>\m/ Andy's MetalBot \m/</h2>
 <div class="evil">
 <h3>Now Playing</h3>
-[{{nowplaying.sid}}] <b>{{nowplaying.artist}}</b> - <i>{{nowplaying.title}}</i></li>
+{% if nowplaying.coverpath %}
+<img class="cover" src="{{nowplaying.coverpath}}" />
+<br >
+{% endif %}
+[{{nowplaying.sid}}] <b>{{nowplaying.artist}}</b> - <i>{{nowplaying.title}}</i><br />
+From the "{{nowplaying.album}}" album
 </div>
 <div class="evil">
 <h3>Upcoming Tracks</h3>
