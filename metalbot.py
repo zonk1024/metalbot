@@ -5,13 +5,7 @@ import sqlite3
 from time import sleep
 import threading, signal, sys, socket
 from select import select
-
-SERVER = "irc.freenode.net"
-CHANNEL = "#parthenon_devs"
-NICK = "Metalbot"
-DB = "bot.db"
-MPD_SERVER = "localhost"
-MPD_PORT = 6600
+import settings
 
 # TODO: Eliminate DB hacks and duped code (SQLite base class is annoying), add votekicking/adding, queueing of full albums
 class MetalBot(botlib.Bot):
@@ -20,7 +14,7 @@ class MetalBot(botlib.Bot):
     def __init__(self, server, channel, nick, password=None):
         botlib.Bot.__init__(self, server, 6667, channel, nick)
         self.mpc = mpd.MPDClient(use_unicode = True)
-        self.db = sqlite3.connect(DB)
+        self.db = sqlite3.connect(settings.DB)
         self._reconnect()
         self.mpc.update()
         self.initialize_db()
@@ -54,11 +48,11 @@ class MetalBot(botlib.Bot):
         
 
     def _reconnect(self):
-        self.mpc.connect(MPD_SERVER, MPD_PORT)
+        self.mpc.connect(settings.MPD_SERVER, settings.MPD_PORT)
 
     def _process_cmd(self, data):
         for reg in [r"^:([^!]+)!.*:!metalbot (\w+)(?: ([^\r\n]*))?", 
-                    r"^:([^!]+)!.*PRIVMSG {0} :(\w+)(?: ([^\r\n]*))?".format(NICK),
+                    r"^:([^!]+)!.*PRIVMSG {0} :(\w+)(?: ([^\r\n]*))?".format(settings.NICK),
                     ]:
             m = re.search(reg, data)
             if m:
@@ -84,16 +78,19 @@ class MetalBot(botlib.Bot):
                 fn = getattr(self, self.command + "_action")
                 fn(self.args)
             except AttributeError:
-                self.protocol.privmsg(self.channel, "Sorry, '{0}' means nothing to me".format(self.command))
+                self.protocol.privmsg(self.channel, u"Sorry, '{0}' means nothing to me".format(self.command))
 
-    def _getsongid(self, filename):
-        db = sqlite3.connect(DB)
+    @staticmethod
+    def getsongid(filename):
+        db = sqlite3.connect(settings.DB)
         cur = db.cursor()
         cur.execute("SELECT id FROM songlist WHERE filename=?", (filename,))
-        return cur.fetchone()[0]
+        row = cur.fetchone()
+        if row is not None:
+            return row[0]
 
     def hello_action(self, args):
-        self.protocol.privmsg(self.channel, "Hello {0}!".format(self.username))
+        self.protocol.privmsg(self.channel, u"Hello {0}!".format(self.username))
 
     def playing_action(self, args):
         s = self.player_status
@@ -101,17 +98,15 @@ class MetalBot(botlib.Bot):
             self.protocol.privmsg(self.channel, "Nothing's playing at the moment")
         else:
             s = self.mpc.currentsong()
-            sid = self._getsongid(s["file"])
-            self.protocol.privmsg(self.channel, "Now playing [{0}]: {1} - {2}".format(sid, s["artist"], s["title"]))
+            sid = MetalBot.getsongid(s["file"])
+            self.protocol.privmsg(self.channel, u"Now playing [{0}]: {1} - {2}".format(sid, s["artist"], s["title"]))
 
     def next_action(self, args):
         s = self.player_status
         if "nextsong" in s:
-            # This is inefficient, but it would be a PITA to do two calls, one to get the filename,
-            # strip, search by filename for the song, pull info, &c.
-            s = self.mpc.playlistinfo()[int(s["nextsong"])]
-            sid = self._getsongid(s["file"])
-            self.protocol.privmsg(self.channel, "Next up [{0}]: {1} - {2}".format(sid, s["artist"], s["title"]))
+            s = self.mpc.playlistinfo(int(s["nextsong"]))[0]
+            sid = MetalBot.getsongid(s["file"])
+            self.protocol.privmsg(self.channel, u"Next up [{0}]: {1} - {2}".format(sid, s["artist"], s["title"]))
         else:
             self.protocol.privmsg(self.channel, "Nothing appears to be up next")
 
@@ -140,7 +135,7 @@ class MetalBot(botlib.Bot):
                 s = "an upvote"
             else:
                 s = "an abstention"
-            self.protocol.privmsg(self.channel, "Recorded {0} from {1}, for [{2}]: {3} {4}".format(s, self.username, args[0], row[0], row[1]))
+            self.protocol.privmsg(self.channel, u"Recorded {0} from {1}, for [{2}]: {3} {4}".format(s, self.username, args[0], row[0], row[1]))
 
     def find_action(self, args):
         if len(args) < 2:
@@ -155,8 +150,8 @@ class MetalBot(botlib.Bot):
         cur = self.db.cursor()
         i = 0
         for s in songs:
-            sid = self._getsongid(s["file"])
-            self.protocol.privmsg(self.username, "[{0}]: {1} - {2} - {3}".format(unicode(sid), s["artist"], s["album"], s["title"]))
+            sid = MetalBot.getsongid(s["file"])
+            self.protocol.privmsg(self.username, u"[{0}]: {1} - {2} - {3}".format(unicode(sid), s["artist"], s["album"], s["title"]))
             if i > 30:
                 return
             # Anti-flood
@@ -206,19 +201,19 @@ class MetalBot(botlib.Bot):
 
     # I make a new DB connection every time because you can't reuse the same one in multiple threads
     def _update_status(self):
-        db = sqlite3.connect(DB)
+        db = sqlite3.connect(settings.DB)
         cur = db.cursor()
         self.player_status = self.mpc.status()
         if self.player_status["state"] == "play":
             s = self.mpc.currentsong()
-            self.currentsong = self._getsongid(s["file"])
+            self.currentsong = MetalBot.getsongid(s["file"])
 
             cur.execute("DELETE FROM queue WHERE songid = %d" % self.currentsong)
             db.commit()
 
     def thread_listener(self):
         mpc = mpd.MPDClient(use_unicode = True)
-        mpc.connect(MPD_SERVER, MPD_PORT)
+        mpc.connect(settings.MPD_SERVER, settings.MPD_PORT)
         mpc.idletimeout = 2
         mpc.send_idle()
         while not self.quit:
@@ -235,7 +230,7 @@ class MetalBot(botlib.Bot):
         sys.exit(0)
 
 if __name__ == "__main__":
-    bot = MetalBot(SERVER, CHANNEL, NICK)
+    bot = MetalBot(settings.SERVER, settings.CHANNEL, settings.NICK)
     signal.signal(signal.SIGINT, bot.handle_controlc)
     interface_thread = threading.Thread(target=bot.thread_listener)
     interface_thread.start()

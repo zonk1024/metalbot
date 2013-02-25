@@ -1,0 +1,61 @@
+<html>
+<head>
+<title>\m/ Andy's Metalbot \m/</title>
+<style type="text/css">
+body
+{
+    font-family: courier;
+    background-color: #000000;
+    color: #FFFFFF;
+}
+
+div.evil
+{
+    border: 1px solid red;
+    padding-left: 10px;
+}
+
+.cover
+{
+    width: 100px;
+    height: 100px;
+}
+
+</style>
+</head>
+<body>
+<h2>\m/ Andy's MetalBot \m/</h2>
+<div class="evil">
+<h3>Now Playing</h3>
+{% if nowplaying.coverpath %}
+<img class="cover" src="{{nowplaying.coverpath}}" />
+<br >
+{% endif %}
+[{{nowplaying.sid}}] <b>{{nowplaying.artist}}</b> - <i>{{nowplaying.title}}</i><br />
+From the "{{nowplaying.album}}" album
+</div>
+<div class="evil">
+<h3>Upcoming Tracks</h3>
+<ol>
+{% if nextup.length == 0 %}
+No upcoming tracks.
+{% else %}
+{% for song in nextup %}
+<li>[{{song.sid}}] <b>{{song.artist}}</b> - <i>{{song.title}}</i></li>
+{% endfor %}
+</ol>
+{% endif %}
+</div>
+<div class="evil">
+<h3>Queue</h3>
+{% if queue.length == 0 %}
+Nothing in the queue at the moment.
+{% else %}
+<ol>
+{% for song in queue %}
+<li>[{{song.sid}}] <b>{{song.artist}}</b> - <i>{{song.title}}</i></li>
+{% endfor %}
+</ol>
+{% endif %}
+</div>
+</body>

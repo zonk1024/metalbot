@@ -26,7 +26,7 @@ class Protocol:
         the entire message has been sent to the server
         """
         while datasent < len(message):
-            sent = self.connection.send(message)
+            sent = self.connection.send(message.encode('utf-8'))
             if sent == 0:
                 raise RuntimeError, "Connection reset by peer."
             else:
