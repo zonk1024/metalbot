@@ -7,19 +7,13 @@ import threading, signal, sys, socket
 from select import select
 import settings
 
-# TODO: Eliminate DB hacks and duped code (SQLite base class is annoying), add votekicking/adding, queueing of full albums
-class MetalBot(botlib.Bot):
-    quit = False
-
-    def __init__(self, server, channel, nick, password=None):
-        botlib.Bot.__init__(self, server, 6667, channel, nick)
+class MPDInterface():
+    def __init__(self):
         self.mpc = mpd.MPDClient(use_unicode = True)
         self.db = sqlite3.connect(settings.DB)
-        self._reconnect()
-        self.mpc.update()
-        self.initialize_db()
-
-        self._requeue()
+        self.db.row_factory = sqlite3.Row
+        self.reconnect()
+        self.idling = False
 
     def initialize_db(self):
         print "Start initialize of DB...getting songs"
@@ -45,10 +39,134 @@ class MetalBot(botlib.Bot):
         print "Commit all that stuff"
         self.db.commit()
         print "End initialize of DB"
-        
 
-    def _reconnect(self):
-        self.mpc.connect(settings.MPD_SERVER, settings.MPD_PORT)
+        print "Requeuing..."
+        self._requeue()
+        print "End requeue"
+
+    def reconnect(self): 
+        try:
+            self.mpc.status()
+        except mpd.ConnectionError:
+            self.mpc.connect(settings.MPD_SERVER, settings.MPD_PORT)
+
+    def getsongid(self, filename):
+        cur = self.db.cursor()
+        cur.execute("SELECT id FROM songlist WHERE filename=?", (filename,))
+        row = cur.fetchone()
+        if row is not None:
+            return row[0]
+        return None
+
+    def currentsong(self):
+        s = self.mpc.status()
+        if s["state"] == "play":
+            song = self.mpc.currentsong()
+            song["sid"] = self.getsongid(song["file"])
+            return song
+        else:
+            return None
+
+    def nextsong(self, number = 1):
+        s = self.mpc.status()
+        nextsongs = []
+        if "nextsong" in s:
+            for songpos in range(int(s["nextsong"]), int(s["nextsong"]) + number):
+                song = self.mpc.playlistinfo(songpos)[0]
+                song["sid"] = self.getsongid(song["file"])
+                nextsongs.append(song)
+            return nextsongs
+        else:
+            return None
+        
+    def vote(self, username, vote):
+        cur = self.db.cursor()
+        cur.execute("SELECT * FROM songlist WHERE id=?", (args[0],))
+        row = cur.fetchone()
+        if row is not None:
+            cur.execute("INSERT OR REPLACE INTO votes (id, username, val) VALUES (?, ?, ?)", (args[0], self.username, vote,))
+            self.db.commit()
+            return row
+        else:
+            return None
+
+    def search(self, tag, tofind):
+        songs = self.mpc.search(tag, tofind)
+        for song in songs:
+            song["sid"] = self.getsongid(song["file"])
+        return songs
+
+    def add_to_queue(self, username, id):
+        cur = self.db.cursor()
+        cur.execute("SELECT COUNT(*) FROM songlist WHERE id=?", (id, ))
+        if cur.fetchone()[0] > 0:
+            cur.execute("INSERT INTO queue (songid, username) VALUES (?, ?)", (id, username, ));
+            self.db.commit()
+            self._requeue()
+
+    def get_queue(self):
+        cur = self.db.cursor()
+        cur.execute("SELECT filename, title, artist FROM queue INNER JOIN songlist ON songlist.id=queue.songid ORDER BY queue.id")
+        queuerows = cur.fetchall()
+        return queuerows
+
+    def _requeue(self):
+        cur = self.db.cursor()
+        self._update_status()
+
+        cur.execute("SELECT filename FROM queue INNER JOIN songlist ON songlist.id=queue.songid ORDER BY queue.id")
+        queue = cur.fetchall()
+        status = self.mpc.status()
+        if "nextsong" in status:
+            nextpos = int(self.mpc.status()["nextsong"])
+            for queueentry in queue:
+                filename = queueentry[0]
+                songs = self.mpc.playlistfind("filename", filename)
+                if len(songs) > 0:
+                    song = songs[0]
+                    self.mpc.moveid(song["id"], unicode(nextpos))
+                    nextpos += 1
+    
+    def listen_for_events(self):
+        if not self.idling:
+            self.mpc.idletimeout = 2
+            self.mpc.send_idle()
+            self.idling = True
+
+        (i, o, e) = select([self.mpc], [], [], 1)
+        for sock in i:
+            if sock == self.mpc:
+                event = self.mpc.fetch_idle()
+                if event[0] == "player":
+                    self._update_status()
+                self.mpc.send_idle()
+
+    def _update_status(self):
+        cur = self.db.cursor()
+        try:
+            self.mpc.status()
+        except mpd.ConnectionError:
+            self.reconnect()
+        self.player_status = self.mpc.status()
+        if self.player_status["state"] == "play":
+            s = self.mpc.currentsong()
+            sid = self.getsongid(s["file"])
+
+            cur.execute("DELETE FROM queue WHERE songid = %d" % sid)
+            self.db.commit()
+            cur.execute("SELECT SUM(val) FROM votes WHERE id=%d" % sid)
+            row = cur.fetchone()
+            if row is not None:
+                if row[0] < -5:
+                    self.mpc.next()
+
+class MetalBot(botlib.Bot):
+    quit = False
+
+    def __init__(self, server, channel, nick, password=None):
+        botlib.Bot.__init__(self, server, 6667, channel, nick)
+        self.mpdi = MPDInterface()
+        self.mpdi.initialize_db()
 
     def _process_cmd(self, data):
         for reg in [r"^:([^!]+)!.*:!metalbot (\w+)(?: ([^\r\n]*))?", 
@@ -69,10 +187,7 @@ class MetalBot(botlib.Bot):
         botlib.Bot.__actions__(self)
  
         if self._process_cmd(self.data):
-            try:
-                self.mpc.status()
-            except mpd.ConnectionError:
-                self._reconnect()
+            self.mpdi.reconnect()
 
             try:
                 fn = getattr(self, self.command + "_action")
@@ -80,35 +195,23 @@ class MetalBot(botlib.Bot):
             except AttributeError:
                 self.protocol.privmsg(self.channel, u"Sorry, '{0}' means nothing to me".format(self.command))
 
-    @staticmethod
-    def getsongid(filename):
-        db = sqlite3.connect(settings.DB)
-        cur = db.cursor()
-        cur.execute("SELECT id FROM songlist WHERE filename=?", (filename,))
-        row = cur.fetchone()
-        if row is not None:
-            return row[0]
-
     def hello_action(self, args):
         self.protocol.privmsg(self.channel, u"Hello {0}!".format(self.username))
 
     def playing_action(self, args):
-        s = self.player_status
-        if s["state"] != "play":
+        song = self.mpdi.currentsong()
+        if song is None:
             self.protocol.privmsg(self.channel, "Nothing's playing at the moment")
         else:
-            s = self.mpc.currentsong()
-            sid = MetalBot.getsongid(s["file"])
-            self.protocol.privmsg(self.channel, u"Now playing [{0}]: {1} - {2}".format(sid, s["artist"], s["title"]))
+            self.protocol.privmsg(self.channel, u"Now playing [{0}]: {1} - {2}".format(song["sid"], song["artist"], song["title"]))
 
     def next_action(self, args):
-        s = self.player_status
-        if "nextsong" in s:
-            s = self.mpc.playlistinfo(int(s["nextsong"]))[0]
-            sid = MetalBot.getsongid(s["file"])
-            self.protocol.privmsg(self.channel, u"Next up [{0}]: {1} - {2}".format(sid, s["artist"], s["title"]))
-        else:
+        songs = self.mpdi.nextsong()
+        if songs is None:
             self.protocol.privmsg(self.channel, "Nothing appears to be up next")
+        else:
+            song = songs[0]
+            self.protocol.privmsg(self.channel, u"Next up [{0}]: {1} - {2}".format(song["sid"], song["artist"], song["title"]))
 
     def downvote_action(self, args):
         self._vote(args, -1)
@@ -123,19 +226,15 @@ class MetalBot(botlib.Bot):
         if len(args) < 1:
             return
 
-        cur = self.db.cursor()
-        cur.execute("INSERT OR REPLACE INTO votes (id, username, val) VALUES (?, ?, ?)", (args[0], self.username, vote,))
-        self.db.commit()
-        cur.execute("SELECT artist, title FROM songlist WHERE id=?", (args[0],))
-        row = cur.fetchone()
-        if row is not None:
+        song = self.mpdi.vote(self.username, args[0])
+        if song is not None:
             if vote == -1:
                 s = "a downvote"
             elif vote == 1:
                 s = "an upvote"
             else:
                 s = "an abstention"
-            self.protocol.privmsg(self.channel, u"Recorded {0} from {1}, for [{2}]: {3} {4}".format(s, self.username, args[0], row[0], row[1]))
+            self.protocol.privmsg(self.channel, u"Recorded {0} from {1}, for [{2}]: {3} {4}".format(s, self.username, args[0], song["artist"], song["title"]))
 
     def find_action(self, args):
         if len(args) < 2:
@@ -146,12 +245,10 @@ class MetalBot(botlib.Bot):
             return
 
         tofind = " ".join(args[1:])
-        songs = self.mpc.search(tag, tofind)
-        cur = self.db.cursor()
+        songs = self.mpdi.search(tag, tofind)
         i = 0
         for s in songs:
-            sid = MetalBot.getsongid(s["file"])
-            self.protocol.privmsg(self.username, u"[{0}]: {1} - {2} - {3}".format(unicode(sid), s["artist"], s["album"], s["title"]))
+            self.protocol.privmsg(self.username, u"[{0}]: {1} - {2} - {3}".format(s["sid"], s["artist"], s["album"], s["title"]))
             if i > 30:
                 return
             # Anti-flood
@@ -164,30 +261,7 @@ class MetalBot(botlib.Bot):
             return
 
         id = args[0]
-        cur = self.db.cursor()
-        cur.execute("SELECT COUNT(*) FROM songlist WHERE id=?", (id, ))
-        if cur.fetchone()[0] > 0:
-            cur.execute("INSERT INTO queue (songid, username) VALUES (?, ?)", (id, self.username, ));
-            self.db.commit()
-            self._requeue()
-
-
-    def _requeue(self):
-        cur = self.db.cursor()
-        self._update_status()
-
-        cur.execute("SELECT filename FROM queue INNER JOIN songlist ON songlist.id=queue.songid ORDER BY queue.id")
-        queue = cur.fetchall()
-        nextpos = int(self.mpc.status()["nextsong"])
-        for queueentry in queue:
-            filename = queueentry[0]
-            songs = self.mpc.playlistfind("filename", filename)
-            if len(songs) > 0:
-                song = songs[0]
-                #print "Queue entry is %s, song pos is %s, songid is %s" % (filename, song["id"], song["file"])
-                self.mpc.moveid(song["id"], unicode(nextpos))
-                #print "Requeued song %s to position %s\n" % (song["id"], nextpos)
-                nextpos += 1
+        self.mpdi.add_to_queue(username, id)
 
     def help_action(self, args):
             self.protocol.privmsg(self.username, "\m/ ANDY'S METAL BOT - THE QUICKEST WAY TO GO DEAF ON #parthenon_devs \m/")
@@ -199,40 +273,10 @@ class MetalBot(botlib.Bot):
             self.protocol.privmsg(self.username, "!metalbot queue <songid> - queues the specified song for playing next")
             self.protocol.privmsg(self.username, "Stream URL ---> http://andy.internal:8000")
 
-    # I make a new DB connection every time because you can't reuse the same one in multiple threads
-    def _update_status(self):
-        db = sqlite3.connect(settings.DB)
-        cur = db.cursor()
-        try:
-            self.mpc.status()
-        except mpd.ConnectionError:
-            self._reconnect()
-        self.player_status = self.mpc.status()
-        if self.player_status["state"] == "play":
-            s = self.mpc.currentsong()
-            self.currentsong = MetalBot.getsongid(s["file"])
-
-            cur.execute("DELETE FROM queue WHERE songid = %d" % self.currentsong)
-            db.commit()
-            row = cur.execute("SELECT SUM(votes) FROM queue WHERE id=%d" % self.currentsong)
-            if row is not None:
-                if row[0] < -5:
-                    self.protocol.privmsg(u"Skipping [{0} {1} - {2} due to downvotes".format(self.currentsong, s["title"], s["artist"]))
-                    self.mpc.next()
-
     def thread_listener(self):
-        mpc = mpd.MPDClient(use_unicode = True)
-        mpc.connect(settings.MPD_SERVER, settings.MPD_PORT)
-        mpc.idletimeout = 2
-        mpc.send_idle()
+        mpdi = MPDInterface()
         while not self.quit:
-            (i, o, e) = select([mpc], [], [], 1)
-            for sock in i:
-                if sock == mpc:
-                    event = mpc.fetch_idle()
-                    mpc.send_idle()
-                    if event[0] == "player":
-                        self._update_status()
+            mpdi.listen_for_events()
 
     def handle_controlc(self, signal, frame):
         self.quit = True
@@ -244,8 +288,8 @@ if __name__ == "__main__":
     interface_thread = threading.Thread(target=bot.thread_listener)
     interface_thread.start()
 
-    try:
-        bot.run()
-    except Exception as e:
-        bot.quit = True
-        raise e
+#    try:
+    bot.run()
+#    except Exception as e:
+#    bot.quit = True
+#    raise e
