@@ -214,6 +214,11 @@ class MetalBot(botlib.Bot):
 
             cur.execute("DELETE FROM queue WHERE songid = %d" % self.currentsong)
             db.commit()
+            row = cur.execute("SELECT SUM(votes) FROM queue WHERE id=%d" % self.currentsong)
+            if row is not None:
+                if row[0] < -5:
+                    self.protocol.privmsg(u"Skipping [{0} {1} - {2} due to downvotes".format(self.currentsong, s["title"], s["artist"]))
+                    self.mpc.next()
 
     def thread_listener(self):
         mpc = mpd.MPDClient(use_unicode = True)
