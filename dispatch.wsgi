@@ -8,7 +8,7 @@ NAME = os.path.basename(ROOT)
 
 DIRS = (
     # Add the path to your virtualenv's site-packages directory right here
-    "/usr/local/share/python-environments/bot/lib/python2.7/site-packages",
+    "/usr/local/share/python-environments/" + NAME + "/lib/python2.7/site-packages",
 )
 for DIR in DIRS:
     if os.path.exists(DIR):

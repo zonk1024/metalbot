@@ -71,7 +71,7 @@ class MetalBot(botlib.Bot):
         if self._process_cmd(self.data):
             try:
                 self.mpc.status()
-            except ConnectionError:
+            except mpd.ConnectionError:
                 self._reconnect()
 
             try:
@@ -142,7 +142,7 @@ class MetalBot(botlib.Bot):
             return
 
         tag = args[0]
-        if not any(tag in s for s in ["artist", "album", "song", "any"]):
+        if not any(tag in s for s in ["artist", "album", "title", "any"]):
             return
 
         tofind = " ".join(args[1:])
@@ -195,7 +195,7 @@ class MetalBot(botlib.Bot):
             self.protocol.privmsg(self.username, "!metalbot next - displays next track")
             self.protocol.privmsg(self.username, "!metalbot <up|down|neutral>vote <songid> - adds your thumbs-up, down, neutral vote to this song")
             sleep(1) # Antiflood
-            self.protocol.privmsg(self.username, "!metalbot find <artist|album|song|any> <title> - finds music and PMs you")
+            self.protocol.privmsg(self.username, "!metalbot find <artist|album|title|any> <title> - finds music and PMs you")
             self.protocol.privmsg(self.username, "!metalbot queue <songid> - queues the specified song for playing next")
             self.protocol.privmsg(self.username, "Stream URL ---> http://andy.internal:8000")
 
@@ -203,6 +203,10 @@ class MetalBot(botlib.Bot):
     def _update_status(self):
         db = sqlite3.connect(settings.DB)
         cur = db.cursor()
+        try:
+            self.mpc.status()
+        except mpd.ConnectionError:
+            self._reconnect()
         self.player_status = self.mpc.status()
         if self.player_status["state"] == "play":
             s = self.mpc.currentsong()
