@@ -36,6 +36,7 @@ class MPDInterface():
                     print "Inserting %s" % song["file"]
                     cur.execute("INSERT INTO songlist (filename, artist, album, title) VALUES (?,?,?,?)", \
                             (song["file"], song["artist"], song["album"], song["title"]))
+
         print "Commit all that stuff"
         self.db.commit()
         print "End initialize of DB"
@@ -55,6 +56,7 @@ class MPDInterface():
         cur.execute("SELECT id FROM songlist WHERE filename=?", (filename,))
         row = cur.fetchone()
         if row is not None:
+            print filename
             return row[0]
         return None
 
@@ -159,6 +161,28 @@ class MPDInterface():
             if row is not None:
                 if row[0] < -5:
                     self.mpc.next()
+
+    def artists(self):
+        cur = self.db.cursor()
+        cur.execute("SELECT DISTINCT artist FROM songlist")
+
+        return self._to_dict_list(cur.fetchall())
+
+    def albums(self, artist):
+        cur = self.db.cursor()
+        cur.execute("SELECT DISTINCT album FROM songlist WHERE artist=?", (artist,))
+
+        return self._to_dict_list(cur.fetchall())
+
+    def _to_dict_list(self, rows):
+        a = []
+        for r in rows:
+            d = {}
+            for k in r.keys():
+                d[k] = r[k]
+            a.append(d)
+
+        return a
 
 class MetalBot(botlib.Bot):
     quit = False
@@ -272,6 +296,7 @@ class MetalBot(botlib.Bot):
             self.protocol.privmsg(self.username, "!metalbot find <artist|album|title|any> <title> - finds music and PMs you")
             self.protocol.privmsg(self.username, "!metalbot queue <songid> - queues the specified song for playing next")
             self.protocol.privmsg(self.username, "Stream URL ---> http://andy.internal:8000")
+            self.protocol.privmsg(self.username, "Station URL ---> http://andy.internal:8080")
 
     def thread_listener(self):
         mpdi = MPDInterface()

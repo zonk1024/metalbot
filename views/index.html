@@ -21,41 +21,80 @@ div.evil
     height: 100px;
 }
 
+.albums
+{
+}
+
+td { vertical-align: top; width: 50%; }
+ul { list-style-type: none; }
+
 </style>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script type="text/javascript">
+    function populateArtists()
+    {
+        $.get("/api/artists", "", function(data, status) {
+            $(".albums").innerHTML = "";
+            $.each(data, function() {
+                $(".albums").append("<li>" + this["artist"] + "</li>");
+            });
+        });
+/*
+        $(".albums").treeview({
+            animated: "fast",
+            collapsed: true,
+            unique: true,
+        });
+*/
+    }
+
+    $(function() {
+        populateArtists();
+    });
+</script>
 </head>
 <body>
 <h2>\m/ Andy's MetalBot \m/</h2>
-<div class="evil">
-<h3>Now Playing</h3>
-{% if nowplaying.coverpath %}
-<img class="cover" src="{{nowplaying.coverpath}}" />
-<br >
-{% endif %}
-[{{nowplaying.sid}}] <b>{{nowplaying.artist}}</b> - <i>{{nowplaying.title}}</i><br />
-From the "{{nowplaying.album}}" album
-</div>
-<div class="evil">
-<h3>Upcoming Tracks</h3>
-<ol>
-{% if nextup.length == 0 %}
-No upcoming tracks.
-{% else %}
-{% for song in nextup %}
-<li>[{{song.sid}}] <b>{{song.artist}}</b> - <i>{{song.title}}</i></li>
-{% endfor %}
-</ol>
-{% endif %}
-</div>
-<div class="evil">
-<h3>Queue</h3>
-{% if queue.length == 0 %}
-Nothing in the queue at the moment.
-{% else %}
-<ol>
-{% for song in queue %}
-<li>[{{song.sid}}] <b>{{song.artist}}</b> - <i>{{song.title}}</i></li>
-{% endfor %}
-</ol>
-{% endif %}
-</div>
+<table border=0 width="100%">
+<tr>
+    <td>
+        <div class="evil">
+        <h3>Now Playing</h3>
+        {% if nowplaying.coverpath %}
+        <img class="cover" src="{{nowplaying.coverpath}}" />
+        <br >
+        {% endif %}
+        [{{nowplaying.sid}}] <b>{{nowplaying.artist}}</b> - <i>{{nowplaying.title}}</i><br />
+        From the "{{nowplaying.album}}" album
+        </div>
+        <div class="evil">
+        <h3>Upcoming Tracks</h3>
+        <ol>
+        {% if nextup.length == 0 %}
+        No upcoming tracks.
+        {% else %}
+        {% for song in nextup %}
+        <li>[{{song.sid}}] <b>{{song.artist}}</b> - <i>{{song.title}}</i></li>
+        {% endfor %}
+        </ol>
+        {% endif %}
+        </div>
+        <div class="evil">
+        <h3>Queue</h3>
+        {% if queue.length == 0 %}
+        Nothing in the queue at the moment.
+        {% else %}
+        <ol>
+        {% for song in queue %}
+        <li>[{{song.sid}}] <b>{{song.artist}}</b> - <i>{{song.title}}</i></li>
+        {% endfor %}
+        </ol>
+        {% endif %}
+        </div>
+    </td>
+    <td>
+        <ul class="albums">
+        </ul>
+    </td>
+</tr>
 </body>
