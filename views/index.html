@@ -23,33 +23,98 @@ div.evil
 
 .albums
 {
+    height: 700px;
+    overflow: auto;
 }
 
-td { vertical-align: top; width: 50%; }
+td { vertical-align: top; width: 33%; }
 ul { list-style-type: none; }
 
 </style>
+<link rel="stylesheet" href="/static/css/jqtree.css" />
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script src="/static/js/tree.jquery.js"></script>
 <script type="text/javascript">
     function populateArtists()
     {
         $.get("/api/artists", "", function(data, status) {
-            $(".albums").innerHTML = "";
+            var artistTree = [];
+
             $.each(data, function() {
-                $(".albums").append("<li>" + this["artist"] + "</li>");
+                var artist = { label: this["artist"], children: []};
+
+                $.each(this["albums"], function() {
+                    artist["children"].push({label: this["album"] });
+                });
+
+                artistTree.push(artist);
+            });
+
+            $(".albums").tree({
+                data: artistTree,
+                onCanSelectNode: function(node) {
+                    if (node.children.length > 0)
+                        return false;
+                    return true;
+                }
+            });
+
+        });
+    }
+
+    function createBindings()
+    {
+        $(".albums").bind("tree.select", function(event) {
+            var node = event.node;
+            artist = node.parent.name;
+            album = node.name;
+            $.get("/api/songs/" + artist + "/" + album, "", function(data, status) {
+                var songlist = [];
+
+                $.each(data, function() {
+                    songlist.push({label: "[" + this["id"] + "] " + this["title"]});
+                });
+                $(".songs").tree({
+                    data: songlist
+                });
+                $("#queuesong").css("display", "");
             });
         });
-/*
-        $(".albums").treeview({
-            animated: "fast",
-            collapsed: true,
-            unique: true,
+
+        $(".songs").bind ("tree.select", function(event) {
+            var node = event.node;
+
+            var regex = /\[(\d+)\]/;
+            id = regex.exec(node.name);
+            if (id[1])
+                $("#queuesong").data("currentsong", id[1]);
         });
-*/
+    }
+
+    function getQueue()
+    {
+        $.get("/api/queue", "", function(data, status) {
+            $("#queue").html("");
+            $.each(data, function() {
+                $("#queue").append("<li>[" + this["sid"] + "] <b>" + this["artist"] + "</b> - <i>" + this["title"] + "</i></li>");
+            });
+        });
     }
 
     $(function() {
         populateArtists();
+        createBindings();
+
+        $("#queuesong").click(function(e) {
+            id = $(this).data("currentsong");
+            if (id)
+            {
+                $.get("/api/queue/" + id);
+            }
+        });
+
+        getQueue();
+        setTimeout(3000, getQueue);
     });
 </script>
 </head>
@@ -81,20 +146,20 @@ ul { list-style-type: none; }
         </div>
         <div class="evil">
         <h3>Queue</h3>
-        {% if queue.length == 0 %}
-        Nothing in the queue at the moment.
-        {% else %}
-        <ol>
-        {% for song in queue %}
-        <li>[{{song.sid}}] <b>{{song.artist}}</b> - <i>{{song.title}}</i></li>
-        {% endfor %}
+        <ol id="queue">
         </ol>
-        {% endif %}
         </div>
     </td>
     <td>
-        <ul class="albums">
-        </ul>
+        <div class="albums">
+        </div>
+    </td>
+    <td>
+        <div class="songs">
+        </div>
+        <div class="buttons">
+            <input type="button" id="queuesong" value="Queue Song" style="display: none" />
+        </div>
     </td>
 </tr>
 </body>

@@ -19,9 +19,7 @@ def main_page():
         if os.path.isfile(os.path.join(settings.MPD_SOURCE, os.path.dirname(nowplaying["file"]), "cover.jpg")):
             nowplaying["coverpath"] = u"/covers/{0}/cover.jpg".format(os.path.dirname(nowplaying["file"]))
 
-    queue = mpdi.get_queue()
-
-    return dict(nextup = nextsongs, nowplaying = nowplaying, queue = queue)
+    return dict(nextup = nextsongs, nowplaying = nowplaying)
 
 @route("/covers/<coverpath:path>")
 def covers(coverpath):
@@ -30,8 +28,12 @@ def covers(coverpath):
 
     return static_file(coverpath, root=settings.MPD_SOURCE)
 
+@route('/static/<filename:re:.*\.(?:js|css)$>')
+def static(filename):
+    return static_file(filename, root='static')
+
 @route('/api/artists')
-def artists():
+def api_artists():
     mpdi = MPDInterface()
     artists = mpdi.artists()
     for artist in artists:
@@ -39,5 +41,24 @@ def artists():
 
     response.content_type = "application/json"
     return json.dumps(artists)
+
+@route('/api/songs/<artist>/<album>')
+def api_songs(artist, album):
+    mpdi = MPDInterface()
+    songs = mpdi.songs(unicode(artist, "utf-8"), unicode(album, "utf-8"))
+
+    response.content_type = "application/json"
+    return json.dumps(songs)
+
+@route("/api/queue/<id:int>")
+def api_queue_add(id):
+    mpdi = MPDInterface()
+    mpdi.add_to_queue("WebUser", id)
+
+@route("/api/queue")
+def api_queue():
+    mpdi = MPDInterface()
+    queue = mpdi.get_queue()
+    return json.dumps(queue)
 
 run(host='0.0.0.0', port=8080)

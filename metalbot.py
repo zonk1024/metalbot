@@ -34,8 +34,12 @@ class MPDInterface():
             if "file" in song and "title" in song:
                 if song["file"] not in loaded_songs:
                     print "Inserting %s" % song["file"]
-                    cur.execute("INSERT INTO songlist (filename, artist, album, title) VALUES (?,?,?,?)", \
-                            (song["file"], song["artist"], song["album"], song["title"]))
+
+                    if "date" not in song:
+                        song["date"] = ""
+
+                    cur.execute("INSERT INTO songlist (filename, artist, album, title, track, date) VALUES (?,?,?,?,?,?)", \
+                            (song["file"], song["artist"], song["album"], song["title"], str(song["track"]), str(song["date"])))
 
         print "Commit all that stuff"
         self.db.commit()
@@ -56,7 +60,6 @@ class MPDInterface():
         cur.execute("SELECT id FROM songlist WHERE filename=?", (filename,))
         row = cur.fetchone()
         if row is not None:
-            print filename
             return row[0]
         return None
 
@@ -102,15 +105,19 @@ class MPDInterface():
         cur = self.db.cursor()
         cur.execute("SELECT COUNT(*) FROM songlist WHERE id=?", (id, ))
         if cur.fetchone()[0] > 0:
-            cur.execute("INSERT INTO queue (songid, username) VALUES (?, ?)", (id, username, ));
-            self.db.commit()
-            self._requeue()
+            print "Found"
+            cur.execute("SELECT COUNT(*) FROM queue WHERE songid=?", (id, ))
+            if cur.fetchone()[0] == 0:
+                print "Not in queue"
+                cur.execute("INSERT INTO queue (songid, username) VALUES (?, ?)", (id, username, ));
+                self.db.commit()
+                self._requeue()
 
     def get_queue(self):
         cur = self.db.cursor()
-        cur.execute("SELECT filename, title, artist FROM queue INNER JOIN songlist ON songlist.id=queue.songid ORDER BY queue.id")
-        queuerows = cur.fetchall()
-        return queuerows
+        cur.execute("SELECT songid AS sid, filename, title, artist FROM queue INNER JOIN songlist ON songlist.id=queue.songid ORDER BY queue.id")
+        
+        return self._to_dict_list(cur.fetchall())
 
     def _requeue(self):
         cur = self.db.cursor()
@@ -119,15 +126,16 @@ class MPDInterface():
         cur.execute("SELECT filename FROM queue INNER JOIN songlist ON songlist.id=queue.songid ORDER BY queue.id")
         queue = cur.fetchall()
         status = self.mpc.status()
-        if "nextsong" in status:
-            nextpos = int(self.mpc.status()["nextsong"])
-            for queueentry in queue:
-                filename = queueentry[0]
-                songs = self.mpc.playlistfind("filename", filename)
-                if len(songs) > 0:
-                    song = songs[0]
-                    self.mpc.moveid(song["id"], unicode(nextpos))
-                    nextpos += 1
+        nextpos = -1
+        for queueentry in queue:
+            filename = queueentry[0]
+            print "Got %s" % filename
+            songs = self.mpc.playlistfind("filename", filename)
+            if len(songs) > 0:
+                song = songs[0]
+                self.mpc.moveid(song["id"], unicode(nextpos))
+                print "Putting it in pos %d" % nextpos
+                nextpos -= 1
     
     def listen_for_events(self):
         if not self.idling:
@@ -153,12 +161,11 @@ class MPDInterface():
         if self.player_status["state"] == "play":
             s = self.mpc.currentsong()
             sid = self.getsongid(s["file"])
-
             cur.execute("DELETE FROM queue WHERE songid = %d" % sid)
             self.db.commit()
             cur.execute("SELECT SUM(val) FROM votes WHERE id=%d" % sid)
             row = cur.fetchone()
-            if row is not None:
+            if row is not None and row[0] is not None:
                 if row[0] < -5:
                     self.mpc.next()
 
@@ -170,8 +177,14 @@ class MPDInterface():
 
     def albums(self, artist):
         cur = self.db.cursor()
-        cur.execute("SELECT DISTINCT album FROM songlist WHERE artist=?", (artist,))
+        cur.execute("SELECT DISTINCT date, album FROM songlist WHERE artist=? ORDER BY date", (artist,))
 
+        return self._to_dict_list(cur.fetchall())
+
+    def songs(self, artist, album):
+        cur = self.db.cursor()
+        cur.execute("SELECT * FROM songlist WHERE artist=? AND album=? ORDER BY track", (artist, album, ))
+        
         return self._to_dict_list(cur.fetchall())
 
     def _to_dict_list(self, rows):
