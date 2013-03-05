@@ -3,9 +3,10 @@ import re
 import mpd
 import sqlite3
 from time import sleep
-import threading, signal, sys, socket
+import threading, signal, sys, socket, os
 from select import select
 import settings
+from subprocess import call
 
 class MPDInterface():
     def __init__(self):
@@ -15,6 +16,16 @@ class MPDInterface():
         self.reconnect()
         self.idling = False
 
+    def load_links(self):
+        for mydir in settings.LINK_DIRS:
+            os.system("cp -as " + mydir + "/* " + settings.MPD_SOURCE)
+        self.mpc.update()
+        os.system("mpc crop")
+        os.system("mpc ls | mpc add")
+        self.mpc.shuffle()
+        self.initialize_db()
+        self._requeue()
+        
     def initialize_db(self):
         print "Start initialize of DB...getting songs"
         songs = self.mpc.listallinfo()
@@ -33,8 +44,6 @@ class MPDInterface():
         for song in songs:
             if "file" in song and "title" in song:
                 if song["file"] not in loaded_songs:
-                    print "Inserting %s" % song["file"]
-
                     if "date" not in song:
                         song["date"] = ""
                     if "track" not in song:
@@ -107,11 +116,20 @@ class MPDInterface():
         cur = self.db.cursor()
         cur.execute("SELECT COUNT(*) FROM songlist WHERE id=?", (id, ))
         if cur.fetchone()[0] > 0:
-            print "Found"
             cur.execute("SELECT COUNT(*) FROM queue WHERE songid=?", (id, ))
             if cur.fetchone()[0] == 0:
-                print "Not in queue"
                 cur.execute("INSERT INTO queue (songid, username) VALUES (?, ?)", (id, username, ));
+                self.db.commit()
+                self._requeue()
+
+    def add_album_to_queue(self, username, artist, album):
+        cur = self.db.cursor()
+        cur.execute("SELECT * FROM songlist WHERE artist=? AND album=? ORDER BY track", (artist, album,))
+        rows = self._to_dict_list(cur.fetchall())
+        for row in rows:
+            cur.execute("SELECT COUNT(*) FROM queue WHERE songid=?", (row["id"], ))
+            if cur.fetchone()[0] == 0:
+                cur.execute("INSERT INTO queue (songid, username) VALUES (?, ?)", (row["id"], username, ));
                 self.db.commit()
                 self._requeue()
 
@@ -131,12 +149,10 @@ class MPDInterface():
         nextpos = -1
         for queueentry in queue:
             filename = queueentry[0]
-            print "Got %s" % filename
             songs = self.mpc.playlistfind("filename", filename)
             if len(songs) > 0:
                 song = songs[0]
                 self.mpc.moveid(song["id"], unicode(nextpos))
-                print "Putting it in pos %d" % nextpos
                 nextpos -= 1
     
     def listen_for_events(self):
@@ -303,15 +319,19 @@ class MetalBot(botlib.Bot):
         self.mpdi.add_to_queue(username, id)
 
     def help_action(self, args):
-            self.protocol.privmsg(self.username, "\m/ ANDY'S METAL BOT - THE QUICKEST WAY TO GO DEAF ON #parthenon_devs \m/")
-            self.protocol.privmsg(self.username, "!metalbot playing - displays current track with ID")
-            self.protocol.privmsg(self.username, "!metalbot next - displays next track")
-            self.protocol.privmsg(self.username, "!metalbot <up|down|neutral>vote <songid> - adds your thumbs-up, down, neutral vote to this song")
-            sleep(1) # Antiflood
-            self.protocol.privmsg(self.username, "!metalbot find <artist|album|title|any> <title> - finds music and PMs you")
-            self.protocol.privmsg(self.username, "!metalbot queue <songid> - queues the specified song for playing next")
-            self.protocol.privmsg(self.username, "Stream URL ---> http://andy.internal:8000")
-            self.protocol.privmsg(self.username, "Station URL ---> http://andy.internal:8080")
+        self.protocol.privmsg(self.username, "\m/ ANDY'S METAL BOT - THE QUICKEST WAY TO GO DEAF ON #parthenon_devs \m/")
+        self.protocol.privmsg(self.username, "!metalbot playing - displays current track with ID")
+        self.protocol.privmsg(self.username, "!metalbot next - displays next track")
+        self.protocol.privmsg(self.username, "!metalbot <up|down|neutral>vote <songid> - adds your thumbs-up, down, neutral vote to this song")
+        sleep(1) # Antiflood
+        self.protocol.privmsg(self.username, "!metalbot find <artist|album|title|any> <title> - finds music and PMs you")
+        self.protocol.privmsg(self.username, "!metalbot queue <songid> - queues the specified song for playing next")
+        self.protocol.privmsg(self.username, "Stream URL ---> http://andy.internal:8000")
+        self.protocol.privmsg(self.username, "Station URL ---> http://andy.internal:8080")
+
+    def linkload_action(self, args):
+#        if self.username == "AndySchmitt":
+        self.mpdi.load_links()
 
     def thread_listener(self):
         mpdi = MPDInterface()

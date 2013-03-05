@@ -1,36 +1,6 @@
 <html>
 <head>
 <title>\m/ Andy's Metalbot \m/</title>
-<style type="text/css">
-body
-{
-    font-family: courier;
-    background-color: #000000;
-    color: #FFFFFF;
-}
-
-div.evil
-{
-    border: 1px solid red;
-    padding-left: 10px;
-}
-
-.cover
-{
-    width: 100px;
-    height: 100px;
-}
-
-.albums
-{
-    height: 700px;
-    overflow: auto;
-}
-
-td { vertical-align: top; width: 33%; }
-ul { list-style-type: none; }
-
-</style>
 <link rel="stylesheet" href="/static/css/jqtree.css" />
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
 <script src="/static/js/tree.jquery.js"></script>
@@ -78,6 +48,8 @@ ul { list-style-type: none; }
                     data: songlist
                 });
                 $("#queuesong").css("display", "");
+                $("#queuealbum").css("display", "");
+                $("#queuealbum").data("currentalbum", artist + "/" + album);
             });
         });
 
@@ -99,6 +71,7 @@ ul { list-style-type: none; }
                 $("#queue").append("<li>[" + this["sid"] + "] <b>" + this["artist"] + "</b> - <i>" + this["title"] + "</i></li>");
             });
         });
+        setTimeout(getQueue, 10000);
     }
 
     $(function() {
@@ -109,19 +82,102 @@ ul { list-style-type: none; }
             id = $(this).data("currentsong");
             if (id)
             {
-                $.get("/api/queue/" + id);
+                $.get("/api/queue/" + id, "", function(data, status){
+                    getQueue();
+                });
+            }
+        });
+
+        $("#queuealbum").click(function(e) {
+            if (!confirm("Confirm the whole damn album? That's a lot of " + artist + "..."))
+                return;
+
+            id = $(this).data("currentalbum");
+            if (id)
+            {
+                $.get("/api/queue/" + id, "", function(data, status){
+                    getQueue();
+                });
             }
         });
 
         getQueue();
-        setTimeout(3000, getQueue);
     });
 </script>
+<style type="text/css">
+body
+{
+    font-family: courier;
+    background-color: #000000;
+    color: #FFFFFF;
+}
+
+div.evil
+{
+    border: 1px solid red;
+    padding-left: 10px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.cover
+{
+    width: 100px;
+    height: 100px;
+}
+
+.albums
+{
+    height: 500px;
+    overflow: auto;
+}
+
+.songs
+{
+    height: 150px;
+    overflow: auto;
+}
+
+.jqtree-title 
+{
+    color: #ffffff !important;
+}
+
+td { vertical-align: top; width: 33%; }
+ul { list-style-type: none; }
+
+ul.jqtree-tree li.jqtree-selected > div,
+ul.jqtree-tree li.jqtree-selected > div:hover {
+    background-color: #FF6817;
+    background: -webkit-gradient(linear, left top, left bottom, from(#FF6A00), to(#FA0C00));
+    background: -moz-linear-gradient(top, #FF6A00, #FA0C00);
+    background: -ms-linear-gradient(top,  #FF6A00, #FA0C00);
+    background: -o-linear-gradient(top,  #FF6A00, #FA0C00);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+h2 { width: 100%; text-align: center; }
+
+</style>
 </head>
 <body>
 <h2>\m/ Andy's MetalBot \m/</h2>
 <table border=0 width="100%">
 <tr>
+    <td>
+        <div class="evil">
+        <h3>Albums</h3>
+        <div class="albums"></div>
+        </div>
+        <div class="evil">
+        <h3>Songs</h3>
+        <div class="songs"></div>
+        </div>
+        <div class="buttons">
+            <input type="button" id="queuesong" value="Queue Song" style="display: none" />
+            <input type="button" id="queuealbum" value="Queue Album" style="display: none" />
+        </div>
+    </td>
     <td>
         <div class="evil">
         <h3>Now Playing</h3>
@@ -144,21 +200,12 @@ ul { list-style-type: none; }
         </ol>
         {% endif %}
         </div>
+    </td>
+    <td>
         <div class="evil">
         <h3>Queue</h3>
         <ol id="queue">
         </ol>
-        </div>
-    </td>
-    <td>
-        <div class="albums">
-        </div>
-    </td>
-    <td>
-        <div class="songs">
-        </div>
-        <div class="buttons">
-            <input type="button" id="queuesong" value="Queue Song" style="display: none" />
         </div>
     </td>
 </tr>

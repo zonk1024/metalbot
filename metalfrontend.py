@@ -59,6 +59,13 @@ def api_queue_add(id):
 def api_queue():
     mpdi = MPDInterface()
     queue = mpdi.get_queue()
+
+    response.content_type = "application/json"
     return json.dumps(queue)
+
+@route("/api/queue/<artist>/<album>")
+def api_queue_album(artist, album):
+    mpdi = MPDInterface()
+    mpdi.add_album_to_queue("WebUser", unicode(artist, "utf-8"), unicode(album, "utf-8"))
 
 run(host='0.0.0.0', port=8080)
