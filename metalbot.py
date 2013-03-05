@@ -37,6 +37,8 @@ class MPDInterface():
 
                     if "date" not in song:
                         song["date"] = ""
+                    if "track" not in song:
+                        song["track"] = ""
 
                     cur.execute("INSERT INTO songlist (filename, artist, album, title, track, date) VALUES (?,?,?,?,?,?)", \
                             (song["file"], song["artist"], song["album"], song["title"], str(song["track"]), str(song["date"])))
