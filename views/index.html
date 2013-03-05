@@ -104,48 +104,96 @@
         getQueue();
     });
 </script>
+<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+<script src="http://code.jquery.com/ui/1.10.1/jquery-ui.js"></script>
+<script>
+$(function() {
+    $(".sortable").sortable();
+    $(".sortable").disableSelection();
+});
+</script>
 <style type="text/css">
 body
 {
     font-family: courier;
     background-color: #000000;
-    color: #FFFFFF;
+    color: #c7c7c7;
+    background-size: 100%;
+    margin: 2px;
+    width: 100%;
 }
-
 div.evil
 {
-    border: 1px solid red;
-    padding-left: 10px;
-    padding-top: 10px;
-    padding-bottom: 10px;
+   margin-bottom: 10px;
+   float: left;
+   width: 50%;
 }
-
+div.evil > div {
+    border: 1px solid #ccc;
+    padding: 0px;
+    -webkit-border-radius: 12px;
+    -moz-border-radius: 12px;
+    border-radius: 12px;
+    margin-right: 8px;
+    background-color: #1d1d1d;
+    border: 2px solid #000000;
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    float: left;
+    display: block;
+    width: 98%;
+}
+div.evil > div.buttons {
+    background: none;
+    border: 0px;
+    margin-top: 10px;
+}
+div.evil > div h3 { 
+    color: #b71313; 
+    margin: 0px;
+    display: block;
+    width: 100%;
+    border-bottom: 1px solid #b71313;
+    padding: 4px;
+	-webkit-box-sizing: border-box; 
+	-moz-box-sizing: border-box;
+	box-sizing: border-box;    
+	-moz-border-radius: 4px 4px 0px 0px;
+    -webkit-border-radius: 4px 4px 0px 0px;
+    border-radius: 4px 4px 0px 0px;
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr = '#5a5a5a', endColorstr = '#1d1d1d');
+    -ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorstr = '#5a5a5a', endColorstr = '#1d1d1d')";
+    background-image: -moz-linear-gradient(top, #5a5a5a, #1d1d1d);
+    background-image: -ms-linear-gradient(top, #5a5a5a, #1d1d1d);
+    background-image: -o-linear-gradient(top, #5a5a5a, #1d1d1d);
+    background-image: -webkit-gradient(linear, center top, center bottom, from(#5a5a5a), to(#1d1d1d));
+    background-image: -webkit-linear-gradient(top, #5a5a5a, #1d1d1d);
+    background-image: linear-gradient(top, #5a5a5a, #1d1d1d);	
+    padding-left: 10px;
+}
 .cover
 {
     width: 100px;
     height: 100px;
 }
-
 .albums
 {
-    height: 500px;
+    height: 50%;
     overflow: auto;
 }
-
 .songs
 {
-    height: 150px;
+    height: auto;
     overflow: auto;
 }
-
 .jqtree-title 
 {
     color: #ffffff !important;
 }
-
 td { vertical-align: top; width: 33%; }
 ul { list-style-type: none; }
-
 ul.jqtree-tree li.jqtree-selected > div,
 ul.jqtree-tree li.jqtree-selected > div:hover {
     background-color: #FF6817;
@@ -155,58 +203,105 @@ ul.jqtree-tree li.jqtree-selected > div:hover {
     background: -o-linear-gradient(top,  #FF6A00, #FA0C00);
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
 }
-
-h2 { width: 100%; text-align: center; }
-
+h2 { width: 100%; text-align: center; color: #b71313; }
+.albums, .songs, .nowplaying { padding: 10px; }
+.nowplaying { 
+    background: url(images/playbutton.png) top right no-repeat;
+}
+.buttons input {
+    background-color: #eeeeee;
+    background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #a7a7a7), color-stop(100%, #aaaaaa));
+    background-image: -webkit-linear-gradient(top, #a7a7a7, #aaaaaa);
+    background-image: -moz-linear-gradient(top, #a7a7a7, #aaaaaa);
+    background-image: -ms-linear-gradient(top, #a7a7a7, #aaaaaa);
+    background-image: -o-linear-gradient(top, #a7a7a7, #aaaaaa);
+    background-image: linear-gradient(top, #a7a7a7, #aaaaaa);
+    border: 1px solid #ccc;
+    border-bottom: 1px solid #bbb;
+    border-radius: 3px;
+    color: #333;
+    font-weight: bold;
+    padding: 4px 0;
+    text-align: center;
+    text-shadow: 0 1px 0 #ccc;
+    width: 150px; 
+}
+.buttons input:hover {
+    background-color: #dddddd;
+    background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #dddddd), color-stop(100%, #a7a7a7));
+    background-image: -webkit-linear-gradient(top, #dddddd, #a7a7a7);
+    background-image: -moz-linear-gradient(top, #dddddd, #a7a7a7);
+    background-image: -ms-linear-gradient(top, #dddddd, #a7a7a7);
+    background-image: -o-linear-gradient(top, #dddddd, #a7a7a7);
+    background-image: linear-gradient(top, #dddddd, #a7a7a7);
+    border: 1px solid #bbb;
+    border-bottom: 1px solid #999;
+    cursor: pointer;
+    text-shadow: 0 1px 0 #ddd; 
+}
+.buttons input:active {
+    border: 1px solid #aaa;
+    border-bottom: 1px solid #888;
+    -webkit-box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
+    box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee; 
+}
 </style>
 </head>
 <body>
-<h2>\m/ Andy's MetalBot \m/</h2>
-<table border=0 width="100%">
-<tr>
-    <td>
-        <div class="evil">
-        <h3>Albums</h3>
-        <div class="albums"></div>
+    <h2>\m/ Andy's MetalBot \m/</h2>
+        <div class="evil sortable">    
+            <div>
+                <h3>Now Playing</h3>
+                {% if nowplaying.coverpath %}
+                <img class="cover" src="{{nowplaying.coverpath}}" />
+                <br >
+                {% endif %}
+                [{{nowplaying.sid}}] <b>{{nowplaying.artist}}</b> - <i>{{nowplaying.title}}</i><br />
+                From the "{{nowplaying.album}}" album
+            </div>
+            <div>
+                <h3>Upcoming Tracks</h3>
+                <ol>
+                {% if nextup.length == 0 %}
+                No upcoming tracks.
+                {% else %}
+                {% for song in nextup %}
+                <li>[{{song.sid}}] <b>{{song.artist}}</b> - <i>{{song.title}}</i></li>
+                {% endfor %}
+                </ol>
+                {% endif %}
+            </div>     
+            <div>
+                <h3>Queue</h3>
+                <ol id="queue">
+                </ol>
+                <div class="buttons">
+                    <input type="button" id="queuesong" value="Queue Song" style="display: none" />
+                    <input type="button" id="queuealbum" value="Queue Album" style="display: none" />
+                </div>
+            </div>   
         </div>
-        <div class="evil">
-        <h3>Songs</h3>
-        <div class="songs"></div>
+        <div class="evil sortable">
+            <div>
+                <h3>Albums</h3>
+                <div class="albums"></div>
+            </div>
+            <div>
+                <h3>Songs</h3>
+                <div class="songs"></div>
+            </div>            
         </div>
-        <div class="buttons">
-            <input type="button" id="queuesong" value="Queue Song" style="display: none" />
-            <input type="button" id="queuealbum" value="Queue Album" style="display: none" />
-        </div>
-    </td>
-    <td>
-        <div class="evil">
-        <h3>Now Playing</h3>
-        {% if nowplaying.coverpath %}
-        <img class="cover" src="{{nowplaying.coverpath}}" />
-        <br >
-        {% endif %}
-        [{{nowplaying.sid}}] <b>{{nowplaying.artist}}</b> - <i>{{nowplaying.title}}</i><br />
-        From the "{{nowplaying.album}}" album
-        </div>
-        <div class="evil">
-        <h3>Upcoming Tracks</h3>
-        <ol>
-        {% if nextup.length == 0 %}
-        No upcoming tracks.
-        {% else %}
-        {% for song in nextup %}
-        <li>[{{song.sid}}] <b>{{song.artist}}</b> - <i>{{song.title}}</i></li>
-        {% endfor %}
-        </ol>
-        {% endif %}
-        </div>
-    </td>
-    <td>
-        <div class="evil">
-        <h3>Queue</h3>
-        <ol id="queue">
-        </ol>
-        </div>
-    </td>
-</tr>
+        <div style="clear: both;"></div>   
+        <script>
+            $(document).ready(function() {
+            var images = ['dark-forest0.jpg', 'dark-forest1.jpg', 'dark-forest2.jpg', 'dark-forest3.jpg', 'dark-forest4.jpg'];
+            $('body').css({'background-image': 'url(images/' + images[Math.floor(Math.random() *      images.length)] + ')'});
+            });
+        </script>        
+
+
+       
+
+
 </body>
+</html>
