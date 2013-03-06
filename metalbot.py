@@ -189,7 +189,7 @@ class MPDInterface():
 
     def artists(self):
         cur = self.db.cursor()
-        cur.execute("SELECT DISTINCT artist FROM songlist")
+        cur.execute("SELECT DISTINCT artist FROM songlist ORDER BY artist")
 
         return self._to_dict_list(cur.fetchall())
 

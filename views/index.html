@@ -2,284 +2,42 @@
 <head>
 <title>\m/ Andy's Metalbot \m/</title>
 <link rel="stylesheet" href="/static/css/jqtree.css" />
-<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
-<script src="/static/js/tree.jquery.js"></script>
-<script type="text/javascript">
-    function populateArtists()
-    {
-        $.get("/api/artists", "", function(data, status) {
-            var artistTree = [];
-
-            $.each(data, function() {
-                var artist = { label: this["artist"], children: []};
-
-                $.each(this["albums"], function() {
-                    artist["children"].push({label: this["album"] });
-                });
-
-                artistTree.push(artist);
-            });
-
-            $(".albums").tree({
-                data: artistTree,
-                onCanSelectNode: function(node) {
-                    if (node.children.length > 0)
-                        return false;
-                    return true;
-                }
-            });
-
-        });
-    }
-
-    function createBindings()
-    {
-        $(".albums").bind("tree.select", function(event) {
-            var node = event.node;
-            artist = node.parent.name;
-            album = node.name;
-            $.get("/api/songs/" + artist + "/" + album, "", function(data, status) {
-                var songlist = [];
-
-                $.each(data, function() {
-                    songlist.push({label: "[" + this["id"] + "] " + this["title"]});
-                });
-                $(".songs").tree({
-                    data: songlist
-                });
-                $("#queuesong").css("display", "");
-                $("#queuealbum").css("display", "");
-                $("#queuealbum").data("currentalbum", artist + "/" + album);
-            });
-        });
-
-        $(".songs").bind ("tree.select", function(event) {
-            var node = event.node;
-
-            var regex = /\[(\d+)\]/;
-            id = regex.exec(node.name);
-            if (id[1])
-                $("#queuesong").data("currentsong", id[1]);
-        });
-    }
-
-    function getQueue()
-    {
-        $.get("/api/queue", "", function(data, status) {
-            $("#queue").html("");
-            $.each(data, function() {
-                $("#queue").append("<li>[" + this["sid"] + "] <b>" + this["artist"] + "</b> - <i>" + this["title"] + "</i></li>");
-            });
-        });
-        setTimeout(getQueue, 10000);
-    }
-
-    $(function() {
-        populateArtists();
-        createBindings();
-
-        $("#queuesong").click(function(e) {
-            id = $(this).data("currentsong");
-            if (id)
-            {
-                $.get("/api/queue/" + id, "", function(data, status){
-                    getQueue();
-                });
-            }
-        });
-
-        $("#queuealbum").click(function(e) {
-            if (!confirm("Confirm the whole damn album? That's a lot of " + artist + "..."))
-                return;
-
-            id = $(this).data("currentalbum");
-            if (id)
-            {
-                $.get("/api/queue/" + id, "", function(data, status){
-                    getQueue();
-                });
-            }
-        });
-
-        getQueue();
-    });
-</script>
+<link rel="stylesheet" href="/static/css/metalbot.css" />
 <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
 <script src="http://code.jquery.com/ui/1.10.1/jquery-ui.js"></script>
-<script>
-$(function() {
-    $(".sortable").sortable();
-    $(".sortable").disableSelection();
-});
+<script src="/static/js/tree.jquery.js"></script>
+<script src="/static/js/metalbot.js"></script>
+<script type="text/javascript">
+    $(function() {
+        $(".sortable").sortable();
+        $(".sortable").disableSelection();
+        populateArtists();
+        createBindings();
+        getQueue();
+        getSongs();
+    });
 </script>
-<style type="text/css">
-body
-{
-    font-family: courier;
-    background-color: #000000;
-    color: #c7c7c7;
-    background-size: 100%;
-    margin: 2px;
-    width: 100%;
-}
-div.evil
-{
-   margin-bottom: 10px;
-   float: left;
-   width: 50%;
-}
-div.evil > div {
-    border: 1px solid #ccc;
-    padding: 0px;
-    -webkit-border-radius: 12px;
-    -moz-border-radius: 12px;
-    border-radius: 12px;
-    margin-right: 8px;
-    background-color: #1d1d1d;
-    border: 2px solid #000000;
-    -moz-border-radius: 4px;
-    -webkit-border-radius: 4px;
-    border-radius: 4px;
-    margin-bottom: 6px;
-    float: left;
-    display: block;
-    width: 98%;
-}
-div.evil > div.buttons {
-    background: none;
-    border: 0px;
-    margin-top: 10px;
-}
-div.evil > div h3 { 
-    color: #b71313; 
-    margin: 0px;
-    display: block;
-    width: 100%;
-    border-bottom: 1px solid #b71313;
-    padding: 4px;
-	-webkit-box-sizing: border-box; 
-	-moz-box-sizing: border-box;
-	box-sizing: border-box;    
-	-moz-border-radius: 4px 4px 0px 0px;
-    -webkit-border-radius: 4px 4px 0px 0px;
-    border-radius: 4px 4px 0px 0px;
-    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr = '#5a5a5a', endColorstr = '#1d1d1d');
-    -ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorstr = '#5a5a5a', endColorstr = '#1d1d1d')";
-    background-image: -moz-linear-gradient(top, #5a5a5a, #1d1d1d);
-    background-image: -ms-linear-gradient(top, #5a5a5a, #1d1d1d);
-    background-image: -o-linear-gradient(top, #5a5a5a, #1d1d1d);
-    background-image: -webkit-gradient(linear, center top, center bottom, from(#5a5a5a), to(#1d1d1d));
-    background-image: -webkit-linear-gradient(top, #5a5a5a, #1d1d1d);
-    background-image: linear-gradient(top, #5a5a5a, #1d1d1d);	
-    padding-left: 10px;
-}
-.cover
-{
-    width: 100px;
-    height: 100px;
-}
-.albums
-{
-    height: 50%;
-    overflow: auto;
-}
-.songs
-{
-    height: auto;
-    overflow: auto;
-}
-.jqtree-title 
-{
-    color: #ffffff !important;
-}
-td { vertical-align: top; width: 33%; }
-ul { list-style-type: none; }
-ul.jqtree-tree li.jqtree-selected > div,
-ul.jqtree-tree li.jqtree-selected > div:hover {
-    background-color: #FF6817;
-    background: -webkit-gradient(linear, left top, left bottom, from(#b71313), to(#9a0700));
-    background: -moz-linear-gradient(top, #b71313, #9a0700);
-    background: -ms-linear-gradient(top,  #b71313, #9a0700);
-    background: -o-linear-gradient(top,  #b71313, #9a0700);
-    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
-    font-weight: bold;
-}
-h2 { width: 100%; text-align: center; color: #b71313; }
-.albums, .songs, .nowplaying { padding: 10px; }
-.nowplaying { 
-    background: url(images/playbutton.png) top right no-repeat;
-}
-.buttons input {
-    background-color: #eeeeee;
-    background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #a7a7a7), color-stop(100%, #aaaaaa));
-    background-image: -webkit-linear-gradient(top, #a7a7a7, #aaaaaa);
-    background-image: -moz-linear-gradient(top, #a7a7a7, #aaaaaa);
-    background-image: -ms-linear-gradient(top, #a7a7a7, #aaaaaa);
-    background-image: -o-linear-gradient(top, #a7a7a7, #aaaaaa);
-    background-image: linear-gradient(top, #a7a7a7, #aaaaaa);
-    border: 1px solid #ccc;
-    border-bottom: 1px solid #bbb;
-    border-radius: 3px;
-    color: #333;
-    font-weight: bold;
-    padding: 4px 0;
-    text-align: center;
-    text-shadow: 0 1px 0 #ccc;
-    width: 150px; 
-}
-.buttons input:hover {
-    background-color: #dddddd;
-    background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #dddddd), color-stop(100%, #a7a7a7));
-    background-image: -webkit-linear-gradient(top, #dddddd, #a7a7a7);
-    background-image: -moz-linear-gradient(top, #dddddd, #a7a7a7);
-    background-image: -ms-linear-gradient(top, #dddddd, #a7a7a7);
-    background-image: -o-linear-gradient(top, #dddddd, #a7a7a7);
-    background-image: linear-gradient(top, #dddddd, #a7a7a7);
-    border: 1px solid #bbb;
-    border-bottom: 1px solid #999;
-    cursor: pointer;
-    text-shadow: 0 1px 0 #ddd; 
-}
-.buttons input:active {
-    border: 1px solid #aaa;
-    border-bottom: 1px solid #888;
-    -webkit-box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
-    box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee; 
-}
-</style>
 </head>
 <body>
     <h2>\m/ Andy's MetalBot \m/</h2>
         <div class="evil sortable">    
             <div>
                 <h3>Now Playing</h3>
-                {% if nowplaying.coverpath %}
-                <img class="cover" src="{{nowplaying.coverpath}}" />
-                <br >
-                {% endif %}
-                [{{nowplaying.sid}}] <b>{{nowplaying.artist}}</b> - <i>{{nowplaying.title}}</i><br />
-                From the "{{nowplaying.album}}" album
+                <div id="covercontainer" style="display:none">
+                    <img class="cover" src="" />
+                </div>
+                <span id="currentsong"></span><br />
+                <span id="currentalbum"></span>
             </div>
             <div>
                 <h3>Upcoming Tracks</h3>
-                <ol>
-                {% if nextup.length == 0 %}
-                No upcoming tracks.
-                {% else %}
-                {% for song in nextup %}
-                <li>[{{song.sid}}] <b>{{song.artist}}</b> - <i>{{song.title}}</i></li>
-                {% endfor %}
+                <ol id="upcoming">
                 </ol>
-                {% endif %}
             </div>     
             <div>
                 <h3>Queue</h3>
                 <ol id="queue">
                 </ol>
-                <div class="buttons">
-                    <input type="button" id="queuesong" value="Queue Song" style="display: none" />
-                    <input type="button" id="queuealbum" value="Queue Album" style="display: none" />
-                </div>
             </div>   
         </div>
         <div class="evil sortable">
@@ -291,18 +49,17 @@ h2 { width: 100%; text-align: center; color: #b71313; }
                 <h3>Songs</h3>
                 <div class="songs"></div>
             </div>            
+            <div class="buttons">
+                <input type="button" id="queuesong" value="Queue Song" style="display: none" />
+                <input type="button" id="queuealbum" value="Queue Album" style="display: none" />
+            </div>
         </div>
         <div style="clear: both;"></div>   
         <script>
             $(document).ready(function() {
             var images = ['dark-forest0.jpg', 'dark-forest1.jpg', 'dark-forest2.jpg', 'dark-forest3.jpg', 'dark-forest4.jpg'];
-            $('body').css({'background-image': 'url(images/' + images[Math.floor(Math.random() *      images.length)] + ')'});
+            $('body').css({'background-image': 'url(/static/images/' + images[Math.floor(Math.random() *      images.length)] + ')'});
             });
         </script>        
-
-
-       
-
-
 </body>
 </html>
