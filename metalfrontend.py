@@ -28,7 +28,7 @@ def covers(coverpath):
 
     return static_file(coverpath, root=settings.MPD_SOURCE)
 
-@route('/static/<filename:re:.*\.(?:js|css)$>')
+@route('/static/<filename:re:.*\.(?:js|css|jpg)$>')
 def static(filename):
     return static_file(filename, root='static')
 
@@ -67,5 +67,24 @@ def api_queue():
 def api_queue_album(artist, album):
     mpdi = MPDInterface()
     mpdi.add_album_to_queue("WebUser", unicode(artist, "utf-8"), unicode(album, "utf-8"))
+
+@route("/api/upcoming/<numsongs:int>")
+def api_upcoming(numsongs):
+    mpdi = MPDInterface()
+    nextsongs = mpdi.nextsong(number = numsongs)
+
+    response.content_type = "application/json"
+    return json.dumps(nextsongs)
+    
+@route("/api/currentsong")
+def api_currentsong():
+    mpdi = MPDInterface()
+    nowplaying = mpdi.currentsong()
+    if nowplaying is not None:
+        if os.path.isfile(os.path.join(settings.MPD_SOURCE, os.path.dirname(nowplaying["file"]), "cover.jpg")):
+            nowplaying["coverpath"] = u"/covers/{0}/cover.jpg".format(os.path.dirname(nowplaying["file"]))
+
+    return nowplaying
+
 
 run(host='0.0.0.0', port=8080)
