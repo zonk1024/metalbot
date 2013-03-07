@@ -9,3 +9,7 @@ LINK_DIRS = (
                 "/home/aschmitt/Music",
                 "/home/aschmitt/RestrictedMusic",
             )
+
+ADMINS = (
+            "AndySchmitt",
+         )
