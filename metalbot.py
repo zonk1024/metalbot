@@ -23,6 +23,7 @@ class MPDInterface():
         os.system("mpc crop")
         os.system("mpc ls | mpc add")
         self.mpc.shuffle()
+        self.mpc.play()
         self.initialize_db()
         self._requeue()
         
@@ -94,13 +95,13 @@ class MPDInterface():
             return nextsongs
         else:
             return None
-        
+    
     def vote(self, songid, username, vote):
         cur = self.db.cursor()
         cur.execute("SELECT * FROM songlist WHERE id=?", (songid,))
         row = cur.fetchone()
         if row is not None:
-            cur.execute("INSERT OR REPLACE INTO votes (id, username, val) VALUES (?, ?, ?)", (songid, self.username, vote,))
+            cur.execute("INSERT OR REPLACE INTO votes (id, username, val) VALUES (?, ?, ?)", (songid, username, vote,))
             self.db.commit()
             return row
         else:
@@ -205,6 +206,20 @@ class MPDInterface():
         
         return self._to_dict_list(cur.fetchall())
 
+    def top_upvotes(self, num):
+        try:
+            num = int(num) 
+        except ValueError:
+            return []
+
+        cur = self.db.cursor()
+        cur.execute("SELECT id AS sid, filename, title, artist FROM votes INNER JOIN songlist USING (id) WHERE val > 0 ORDER BY val DESC LIMIT %s" % num)
+        
+        return self._to_dict_list(cur.fetchall())
+
+    def move_to_next(self):
+        self.mpc.next()
+
     def _to_dict_list(self, rows):
         a = []
         for r in rows:
@@ -217,6 +232,7 @@ class MPDInterface():
 
 class MetalBot(botlib.Bot):
     quit = False
+    msg_counter = 0
 
     def __init__(self, server, channel, nick, password=None):
         botlib.Bot.__init__(self, server, 6667, channel, nick)
@@ -248,25 +264,25 @@ class MetalBot(botlib.Bot):
                 fn = getattr(self, self.command + "_action")
                 fn(self.args)
             except AttributeError:
-                self.protocol.privmsg(self.channel, u"Sorry, '{0}' means nothing to me".format(self.command))
+                self._privmsg(self.channel, u"Sorry, '{0}' means nothing to me".format(self.command))
 
     def hello_action(self, args):
-        self.protocol.privmsg(self.channel, u"Hello {0}!".format(self.username))
+        self._privmsg(self.channel, u"Hello {0}!".format(self.username))
 
     def playing_action(self, args):
         song = self.mpdi.currentsong()
         if song is None:
-            self.protocol.privmsg(self.channel, "Nothing's playing at the moment")
+            self._privmsg(self.channel, "Nothing's playing at the moment")
         else:
-            self.protocol.privmsg(self.channel, u"Now playing [{0}]: {1} - {2}".format(song["sid"], song["artist"], song["title"]))
+            self._privmsg(self.channel, u"Now playing [{0}]: {1} - {2}".format(song["sid"], song["artist"], song["title"]))
 
     def next_action(self, args):
         songs = self.mpdi.nextsong()
         if songs is None:
-            self.protocol.privmsg(self.channel, "Nothing appears to be up next")
+            self_privmsg(self.channel, "Nothing appears to be up next")
         else:
             song = songs[0]
-            self.protocol.privmsg(self.channel, u"Next up [{0}]: {1} - {2}".format(song["sid"], song["artist"], song["title"]))
+            self._privmsg(self.channel, u"Next up [{0}]: {1} - {2}".format(song["sid"], song["artist"], song["title"]))
 
     def downvote_action(self, args):
         self._vote(args, -1)
@@ -276,6 +292,13 @@ class MetalBot(botlib.Bot):
 
     def undovote_action(self, args):
         self._vote(args, 0)
+
+    # Andy can do this, no one else.
+    def nuclearstrike_action(self, args):
+        if self.username in settings.ADMINS:
+            self._vote(args, -999)
+        else:
+            self._privmsg(self.username, u"Sorry, only configured admins can perform nuclear strikes")
 
     def _vote(self, args, vote):
         if len(args) < 1:
@@ -287,9 +310,29 @@ class MetalBot(botlib.Bot):
                 s = "a downvote"
             elif vote == 1:
                 s = "an upvote"
+            elif vote < 100:
+                self._sendnuke()
+                s = "a nuclear strike"
             else:
                 s = "an abstention"
-            self.protocol.privmsg(self.channel, u"Recorded {0} from {1}, for [{2}]: {3} {4}".format(s, self.username, args[0], song["artist"], song["title"]))
+            self._privmsg(self.channel, u"Recorded {0} from {1}, for [{2}]: {3} - {4}".format(s, self.username, args[0], song["artist"], song["title"]))
+
+    def _sendnuke(self):
+        nuke = """
+              ..-^~~~^-..
+            .~           ~.
+           (;:           :;)
+            (:           :)
+              ':._   _.:'
+                  | |
+                (=====)
+                  | |
+                  | |
+                  | |
+               ((/   \))
+"""
+        for line in nuke.split("\n"):
+            self._privmsg(self.channel, line)
 
     def find_action(self, args):
         if len(args) < 2:
@@ -303,12 +346,9 @@ class MetalBot(botlib.Bot):
         songs = self.mpdi.search(tag, tofind)
         i = 0
         for s in songs:
-            self.protocol.privmsg(self.username, u"[{0}]: {1} - {2} - {3}".format(s["sid"], s["artist"], s["album"], s["title"]))
-            if i > 30:
+            self._privmsg(self.username, u"[{0}]: {1} - {2} - {3}".format(s["sid"], s["artist"], s["album"], s["title"]))
+            if i > 50:
                 return
-            # Anti-flood
-            if i % 5 == 0 and i != 0:
-                sleep(1)
             i += 1
 
     def queue_action(self, args):
@@ -318,20 +358,39 @@ class MetalBot(botlib.Bot):
         id = args[0]
         self.mpdi.add_to_queue(username, id)
 
+    def showqueue_action(self):
+        queue = self.mpdi.get_queue()
+        for qe in queue:
+            self._privmsg(self.channel, u"[{0}]: {1} - {2} - {3}".format(s["sid"], s["artist"], s["album"], s["title"]))
+        
+    # Messaging with antiflood protection
+    def _privmsg(self, username, message):
+        if self.msg_counter % 5 == 0 and self.msg_counter != 0:
+            sleep(1)
+
+        self.protocol.privmsg(username, message)
+        self.msg_counter += 1
+        
     def help_action(self, args):
-        self.protocol.privmsg(self.username, "\m/ ANDY'S METAL BOT - THE QUICKEST WAY TO GO DEAF ON #parthenon_devs \m/")
-        self.protocol.privmsg(self.username, "!metalbot playing - displays current track with ID")
-        self.protocol.privmsg(self.username, "!metalbot next - displays next track")
-        self.protocol.privmsg(self.username, "!metalbot <up|down|neutral>vote <songid> - adds your thumbs-up, down, neutral vote to this song")
-        sleep(1) # Antiflood
-        self.protocol.privmsg(self.username, "!metalbot find <artist|album|title|any> <title> - finds music and PMs you")
-        self.protocol.privmsg(self.username, "!metalbot queue <songid> - queues the specified song for playing next")
-        self.protocol.privmsg(self.username, "Stream URL ---> http://andy.internal:8000")
-        self.protocol.privmsg(self.username, "Station URL ---> http://andy.internal:8080")
+        self._privmsg(self.username, "\m/ ANDY'S METAL BOT - THE QUICKEST WAY TO GO DEAF ON #parthenon_devs \m/")
+        self._privmsg(self.username, "!metalbot playing - displays current track with ID")
+        self._privmsg(self.username, "!metalbot next - displays next track")
+        self._privmsg(self.username, "!metalbot <up|down|undo>vote <songid> - adds your thumbs-up, down, neutral vote to this song")
+        self._privmsg(self.username, "!metalbot find <artist|album|title|any> <title> - finds music and PMs you")
+        self._privmsg(self.username, "!metalbot queue <songid> - queues the specified song for playing next")
+        self._privmsg(self.username, "!metalbot showqueue - shows everything queued up")
+        self._privmsg(self.username, "!metalbot faves - shows the top 10 upvoted songs")
+        self._privmsg(self.username, "Stream URL ---> http://andy.internal:8000")
+        self._privmsg(self.username, "Station URL ---> http://andy.internal:8080")
 
     def linkload_action(self, args):
-#        if self.username == "AndySchmitt":
-        self.mpdi.load_links()
+        if self.username in settings.ADMINS:
+            self.mpdi.load_links()
+
+    def faves_action(self, args):
+        self._privmsg(self.channel, "The top upvotes are as follows:")
+        for f in self.mpdi.top_upvotes(10):
+            self._privmsg(self.channel, u"[{0}]: {1} - {2} - {3}".format(s["sid"], s["artist"], s["album"], s["title"]))
 
     def thread_listener(self):
         mpdi = MPDInterface()
