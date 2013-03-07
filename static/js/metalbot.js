@@ -99,13 +99,13 @@ function getSongs()
         });
     });
     $.get("/api/currentsong", "", function(data, status) {
-        $("#covercontainer").css("display:none");
+        $("#covercontainer").css("display", "none");
         $("#currentsong").html("[" + data["sid"] + "] <b>" + data["artist"] + "</b> - <i>" + data["title"] + "</i>");
         $("#currentalbum").html("From the \"" + data["album"] + "\" album");
         if (data["coverpath"] != null)
         {
             $(".cover").attr("src", data["coverpath"]);
-            $("#covercontainer").css("display", "");a
+            $("#covercontainer").css("display", "");
         }
     });
     setTimeout(getSongs, 30000);

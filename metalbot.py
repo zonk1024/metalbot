@@ -95,12 +95,12 @@ class MPDInterface():
         else:
             return None
         
-    def vote(self, username, vote):
+    def vote(self, songid, username, vote):
         cur = self.db.cursor()
-        cur.execute("SELECT * FROM songlist WHERE id=?", (args[0],))
+        cur.execute("SELECT * FROM songlist WHERE id=?", (songid,))
         row = cur.fetchone()
         if row is not None:
-            cur.execute("INSERT OR REPLACE INTO votes (id, username, val) VALUES (?, ?, ?)", (args[0], self.username, vote,))
+            cur.execute("INSERT OR REPLACE INTO votes (id, username, val) VALUES (?, ?, ?)", (songid, self.username, vote,))
             self.db.commit()
             return row
         else:
@@ -281,7 +281,7 @@ class MetalBot(botlib.Bot):
         if len(args) < 1:
             return
 
-        song = self.mpdi.vote(self.username, args[0])
+        song = self.mpdi.vote(args[0], self.username, vote)
         if song is not None:
             if vote == -1:
                 s = "a downvote"
