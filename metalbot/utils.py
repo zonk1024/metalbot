@@ -1,4 +1,4 @@
-import os
+import os, re
 import mpd
 import sqlite3
 from select import select
@@ -44,8 +44,16 @@ class MPDInterface():
                 if song["file"] not in loaded_songs:
                     if "date" not in song:
                         song["date"] = ""
+
                     if "track" not in song:
                         song["track"] = ""
+
+                    m = re.search(r"(\d{4})", song["date"])
+                    if m:
+                        song["date"] = m.group(1)
+                    m = re.search(r"^(\d+)", str(song["track"]))
+                    if m:
+                        song["track"] = m.group(1)
 
                     cur.execute("INSERT INTO songlist (filename, artist, album, title, track, date) VALUES (?,?,?,?,?,?)", \
                             (song["file"], song["artist"], song["album"], song["title"], str(song["track"]), str(song["date"])))

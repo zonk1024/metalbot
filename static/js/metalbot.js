@@ -114,11 +114,11 @@ function getSongs()
     setTimeout(getSongs, 30000);
 }
 
-function initializePlayer()
+function initializePlayer(url)
 {
     var stream = {
-        title: "ABC Jazz",
-        mp3: "http://listen.radionomy.com/abc-jazz"
+        title: "Metalbot",
+        mp3: url
     };
 
     $("#player").jPlayer({
@@ -129,6 +129,13 @@ function initializePlayer()
 
         pause: function() {
             $(this).jPlayer("clearMedia");
+            $(".jp-play")[0].toggle();
+            $(".jp-pause")[0].toggle();
+        },
+
+        play: function() {
+            $(".jp-play")[0].toggle();
+            $(".jp-pause")[0].toggle();
         },
 
         error: function(event) {
