@@ -1,7 +1,7 @@
 import os, re
 from bottle import route, run, debug, request, validate, static_file, error, abort,response
 from bottle import jinja2_view as view, jinja2_template as template
-from metalbot import MPDInterface
+from utils import MPDInterface
 import json
 import settings
 
@@ -86,5 +86,19 @@ def api_currentsong():
 
     return nowplaying
 
+def _check_secret(secret):
+    if settings.SECRET == secret:
+        return
+    raise Exception("Secret is not correct, preventing load!")
 
-run(host='0.0.0.0', port=8080)
+@route("/initialize/<secret>")
+def initialize_db(secret):
+    _check_secret(secret)
+
+    mpdi = MPDInterface()
+    mpdi.initialize_db()
+
+    return "Done!"
+
+if __name__ == "__main__":
+    run(host='0.0.0.0', port=8080)
