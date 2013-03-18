@@ -64,7 +64,7 @@ class MPDInterface():
     def reconnect(self): 
         try:
             self.mpc.status()
-        except mpd.ConnectionError:
+        except:
             self.mpc.connect(settings.MPD_SERVER, settings.MPD_PORT)
 
     def getsongid(self, filename):
@@ -240,6 +240,9 @@ class MetalBot(botlib.Bot):
         self.mpdi.initialize_db()
 
     def _process_cmd(self, data):
+        if data.lower().find("shopigniter") != -1:
+            self._privmsg(self.channel, u"Fuck Shopigniter \m/")
+
         for reg in [r"^:([^!]+)!.*:!metalbot (\w+)(?: ([^\r\n]*))?", 
                     r"^:([^!]+)!.*PRIVMSG {0} :(\w+)(?: ([^\r\n]*))?".format(settings.NICK),
                     ]:
@@ -356,7 +359,7 @@ class MetalBot(botlib.Bot):
             return
 
         id = args[0]
-        self.mpdi.add_to_queue(username, id)
+        self.mpdi.add_to_queue(self.username, id)
 
     def showqueue_action(self):
         queue = self.mpdi.get_queue()
