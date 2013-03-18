@@ -17,7 +17,10 @@ function populateArtists()
             data: artistTree,
             onCanSelectNode: function(node) {
                 if (node.children.length > 0)
+                {
+                    $(".albums").tree("toggle", node);
                     return false;
+                }
                 return true;
             }
         });
@@ -111,3 +114,41 @@ function getSongs()
     setTimeout(getSongs, 30000);
 }
 
+function initializePlayer(url)
+{
+    var stream = {
+        title: "Metalbot",
+        mp3: url
+    };
+
+    $("#player").jPlayer({
+        ready: function (event) {
+            ready = true;
+            $(this).jPlayer("setMedia", stream);
+        },
+
+        pause: function() {
+            $(this).jPlayer("clearMedia");
+            $(".jp-play")[0].toggle();
+            $(".jp-pause")[0].toggle();
+        },
+
+        play: function() {
+            $(".jp-play")[0].toggle();
+            $(".jp-pause")[0].toggle();
+        },
+
+        error: function(event) {
+            if(ready && event.jPlayer.error.type === $.jPlayer.error.URL_NOT_SET) {
+
+                // Setup the media stream again and play it.
+                $(this).jPlayer("setMedia", stream).jPlayer("play");
+            }
+        },
+
+        swfPath: "../swf",
+        supplied: "mp3",
+        preload: "none",
+        wmode: "window"
+    });
+}

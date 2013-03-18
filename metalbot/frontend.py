@@ -1,7 +1,7 @@
 import os, re
 from bottle import route, run, debug, request, validate, static_file, error, abort,response
 from bottle import jinja2_view as view, jinja2_template as template
-from metalbot import MPDInterface
+from utils import MPDInterface
 import json
 import settings
 
@@ -19,7 +19,7 @@ def main_page():
         if os.path.isfile(os.path.join(settings.MPD_SOURCE, os.path.dirname(nowplaying["file"]), "cover.jpg")):
             nowplaying["coverpath"] = u"/covers/{0}/cover.jpg".format(os.path.dirname(nowplaying["file"]))
 
-    return dict(nextup = nextsongs, nowplaying = nowplaying)
+    return dict(nextup = nextsongs, nowplaying = nowplaying, mpdurl = settings.MPD_URL)
 
 @route("/covers/<coverpath:path>")
 def covers(coverpath):
@@ -28,7 +28,7 @@ def covers(coverpath):
 
     return static_file(coverpath, root=settings.MPD_SOURCE)
 
-@route('/static/<filename:re:.*\.(?:js|css|jpg)$>')
+@route('/static/<filename:re:.*\.(?:js|css|jpg|png)$>')
 def static(filename):
     return static_file(filename, root='static')
 
@@ -86,5 +86,28 @@ def api_currentsong():
 
     return nowplaying
 
+def _check_secret(secret):
+    if settings.SECRET == secret:
+        return
+    raise Exception("Secret is not correct, preventing load!")
 
-run(host='0.0.0.0', port=8080)
+@route("/initialize/<secret>")
+def initialize_db(secret):
+    _check_secret(secret)
+
+    mpdi = MPDInterface()
+    mpdi.initialize_db()
+
+    return "Done!"
+
+@route("/loadlinks/<secret>")
+def initialize_db(secret):
+    _check_secret(secret)
+
+    mpdi = MPDInterface()
+    mpdi.load_links()
+
+    return "Done!"
+
+if __name__ == "__main__":
+    run(host='0.0.0.0', port=8080)
