@@ -2,6 +2,7 @@ import botlib
 from time import sleep
 import threading, signal, sys, socket
 import settings
+import re
 from utils import MPDInterface
 
 class MetalBot(botlib.Bot):
@@ -136,10 +137,10 @@ class MetalBot(botlib.Bot):
         id = args[0]
         self.mpdi.add_to_queue(self.username, id)
 
-    def showqueue_action(self):
+    def showqueue_action(self, args):
         queue = self.mpdi.get_queue()
         for qe in queue:
-            self._privmsg(self.channel, u"[{0}]: {1} - {2} - {3}".format(s["sid"], s["artist"], s["album"], s["title"]))
+            self._privmsg(self.channel, u"[{0}]: {1} - {2} - {3}".format(qe["sid"], qe["artist"], qe["album"], qe["title"]))
         
     # Messaging with antiflood protection
     def _privmsg(self, username, message):
