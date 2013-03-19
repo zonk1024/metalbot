@@ -4,6 +4,7 @@ import sqlite3
 from select import select
 import settings
 from subprocess import call
+import time,calendar
 
 class MPDInterface():
     def __init__(self):
@@ -55,8 +56,10 @@ class MPDInterface():
                     if m:
                         song["track"] = m.group(1)
 
-                    cur.execute("INSERT INTO songlist (filename, artist, album, title, track, date) VALUES (?,?,?,?,?,?)", \
-                            (song["file"], song["artist"], song["album"], song["title"], str(song["track"]), str(song["date"])))
+                    song["lastmodified"] = calendar.timegm(time.strptime(song["last-modified"], "%Y-%m-%dT%H:%M:%SZ"))
+                    cur.execute("INSERT INTO songlist (filename, artist, album, title, track, date, lastmodified) VALUES (?,?,?,?,?,?,?)", \
+                            (song["file"], song["artist"], song["album"], song["title"], str(song["track"]), str(song["date"]),
+                            str(int(song["lastmodified"]))))
 
         print "Commit all that stuff"
         self.db.commit()
@@ -225,6 +228,17 @@ class MPDInterface():
 
     def move_to_next(self):
         self.mpc.next()
+
+    def latest(self, num)
+        try:
+            num = int(num)
+        except ValueError:
+            return []
+
+        cur = self.db.cursor()
+        cur.execute("SELECT id AS sid, filename, title, artist FROM songlist ORDER BY lastmodified DESC LIMIT %s" % num)
+        
+        return self._to_dict_list(cur.fetchall())
 
     def _to_dict_list(self, rows):
         a = []

@@ -159,6 +159,7 @@ class MetalBot(botlib.Bot):
         self._privmsg(self.username, "!metalbot queue <songid> - queues the specified song for playing next")
         self._privmsg(self.username, "!metalbot showqueue - shows everything queued up")
         self._privmsg(self.username, "!metalbot faves - shows the top 10 upvoted songs")
+        self._privmsg(self.username, "!metalbot latest - shows the top 50 latest songs")
         self._privmsg(self.username, "Stream URL ---> http://andy.internal:8000")
         self._privmsg(self.username, "Station URL ---> http://andy.internal:8080")
 
@@ -170,6 +171,11 @@ class MetalBot(botlib.Bot):
         self._privmsg(self.channel, "The top upvotes are as follows:")
         for f in self.mpdi.top_upvotes(10):
             self._privmsg(self.channel, u"[{0}]: {1} - {2} - {3}".format(s["sid"], s["artist"], s["album"], s["title"]))
+
+    def latest_action(self, args):
+        self._privmsg(self.username, "The latest available songs are as follows:")
+        for s in self.mpdi.latest(50):
+            self._privmsg(self.username, u"[{0}]: {1} - {2} - {3}".format(s["sid"], s["artist"], s["album"], s["title"]))
 
     def thread_listener(self):
         mpdi = MPDInterface()
