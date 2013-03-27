@@ -189,13 +189,14 @@ class MPDInterface():
         if self.player_status["state"] == "play":
             s = self.mpc.currentsong()
             sid = self.getsongid(s["file"])
-            cur.execute("DELETE FROM queue WHERE songid = %d" % sid)
-            self.db.commit()
-            cur.execute("SELECT SUM(val) FROM votes WHERE id=%d" % sid)
-            row = cur.fetchone()
-            if row is not None and row[0] is not None:
-                if row[0] < -5:
-                    self.mpc.next()
+            if sid is not None:
+                cur.execute("DELETE FROM queue WHERE songid = %d" % sid)
+                self.db.commit()
+                cur.execute("SELECT SUM(val) FROM votes WHERE id=%d" % sid)
+                row = cur.fetchone()
+                if row is not None and row[0] is not None:
+                    if row[0] < -5:
+                        self.mpc.next()
 
     def artists(self):
         cur = self.db.cursor()
@@ -229,7 +230,7 @@ class MPDInterface():
     def move_to_next(self):
         self.mpc.next()
 
-    def latest(self, num)
+    def latest(self, num):
         try:
             num = int(num)
         except ValueError:
