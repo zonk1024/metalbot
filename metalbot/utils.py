@@ -144,6 +144,7 @@ class MPDInterface():
                 self._requeue()
 
     def get_queue(self):
+        self._requeue()
         cur = self.db.cursor()
         cur.execute("SELECT songid AS sid, filename, title, artist FROM queue INNER JOIN songlist ON songlist.id=queue.songid ORDER BY queue.id")
         

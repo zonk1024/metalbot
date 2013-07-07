@@ -1,4 +1,4 @@
-import os, re
+import os, re, sys, threading, signal
 from bottle import route, run, debug, request, validate, static_file, error, abort,response
 from bottle import jinja2_view as view, jinja2_template as template
 from utils import MPDInterface
@@ -109,5 +109,21 @@ def initialize_db(secret):
 
     return "Done!"
 
+class MPDThread:
+    quit = False
+
+    def thread_listener(self):
+        mpdi = MPDInterface()
+        while not self.quit:
+            mpdi.listen_for_events()
+
+    def handle_controlc(self, signal, frame):
+        self.quit = True
+        sys.exit(0)
+
 if __name__ == "__main__":
+    mpdthread = MPDThread()
+    signal.signal(signal.SIGINT, mpdthread.handle_controlc)
+    interface_thread = threading.Thread(target=mpdthread.thread_listener)
+    interface_thread.start()
     run(host='0.0.0.0', port=8080)
