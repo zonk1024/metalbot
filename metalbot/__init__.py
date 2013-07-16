@@ -177,6 +177,10 @@ class MetalBot(botlib.Bot):
         for s in self.mpdi.latest(50):
             self._privmsg(self.username, u"[{0}]: {1} - {2} - {3}".format(s["sid"], s["artist"], s["album"], s["title"]))
 
+    def say_action(self, args):
+        tosay = " ".join(args)
+        self._privmsg(self.channel, tosay)
+        
     def thread_listener(self):
         mpdi = MPDInterface()
         while not self.quit:

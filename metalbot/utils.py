@@ -1,4 +1,4 @@
-import os, re
+import os, re, sys
 import mpd
 import sqlite3
 from select import select
@@ -57,9 +57,14 @@ class MPDInterface():
                         song["track"] = m.group(1)
 
                     song["lastmodified"] = calendar.timegm(time.strptime(song["last-modified"], "%Y-%m-%dT%H:%M:%SZ"))
-                    cur.execute("INSERT INTO songlist (filename, artist, album, title, track, date, lastmodified) VALUES (?,?,?,?,?,?,?)", \
-                            (song["file"], song["artist"], song["album"], song["title"], str(song["track"]), str(song["date"]),
-                            str(int(song["lastmodified"]))))
+                    try:
+                        cur.execute("INSERT INTO songlist (filename, artist, album, title, track, date, lastmodified) VALUES (?,?,?,?,?,?,?)", \
+                                (song["file"], song["artist"], song["album"], song["title"], str(song["track"]), str(song["date"]),
+                                str(int(song["lastmodified"]))))
+                    except:
+                        print "Failed to import song: "
+                        print song
+                        sys.exit(0)
 
         print "Commit all that stuff"
         self.db.commit()
@@ -73,8 +78,12 @@ class MPDInterface():
         try:
             self.mpc.status()
         except:
-             self.mpc.connect(settings.MPD_SERVER, settings.MPD_PORT)
+            try:
+                self.mpc.disconnect()
+            except mpd.ConnectionError:
+                pass
 
+            self.mpc.connect(settings.MPD_SERVER, settings.MPD_PORT)
 
     def getsongid(self, filename):
         cur = self.db.cursor()
