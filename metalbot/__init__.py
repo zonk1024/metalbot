@@ -45,6 +45,22 @@ class MetalBot(botlib.Bot):
             except AttributeError:
                 self._privmsg(self.channel, u"Sorry, '{0}' means nothing to me".format(self.command))
 
+    def kick_action(self, args):
+        if len(args) < 1:
+            return
+
+        for admin in settings.ADMINS:
+            if args[0].lower() == admin.lower():
+                self._privmsg(self.channel, "{0}: {1}".format(self.username, settings.GO_TO_HELL_MSG))
+                return
+
+        if len(args) == 2:
+            comment = " ".join(args[1:])
+        else:
+            comment = "Bye"
+
+        self.protocol.send("KICK {0} {1} {2}".format(self.channel, args[0], comment))
+
     def hello_action(self, args):
         self._privmsg(self.channel, u"Hello {0}!".format(self.username))
 
@@ -160,6 +176,7 @@ class MetalBot(botlib.Bot):
         self._privmsg(self.username, "!metalbot showqueue - shows everything queued up")
         self._privmsg(self.username, "!metalbot faves - shows the top 10 upvoted songs")
         self._privmsg(self.username, "!metalbot latest - shows the top 50 latest songs")
+        self._privmsg(self.username, "!metalbot kick <nick> [comment] - kicks out the riffraff")
         self._privmsg(self.username, "Stream URL ---> http://andy.internal:8000")
         self._privmsg(self.username, "Station URL ---> http://andy.internal:8080")
 

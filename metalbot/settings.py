@@ -1,7 +1,7 @@
 SERVER = "irc.freenode.net"
 CHANNEL = "#parthenon_devs"
 NICK = "Metalbot"
-DB = "bot.db"
+DB = "wench.db"
 MPD_SERVER = "localhost"
 MPD_PORT = 6600
 MPD_SOURCE = "/home/aschmitt/MPDMusic"
@@ -14,4 +14,7 @@ LINK_DIRS = (
 
 ADMINS = (
             "AndySchmitt",
+            NICK
          )
+GO_TO_HELL_MSG = "Sit on it and rotate"
+PLAYLIST_SIZE=500

@@ -5,6 +5,7 @@ from select import select
 import settings
 from subprocess import call
 import time,calendar
+from socket import error as socketerror
 
 class MPDInterface():
     def __init__(self):
@@ -18,13 +19,42 @@ class MPDInterface():
         for mydir in settings.LINK_DIRS:
             os.system("cp -as " + mydir + "/* " + settings.MPD_SOURCE)
         self.mpc.update()
-        os.system("mpc crop")
-        os.system("mpc ls | mpc add")
-        self.mpc.shuffle()
-        self.mpc.play()
         self.initialize_db()
-        self._requeue()
-        
+        self.mpc.play()
+
+    def _reload_playlist(self):
+        # Delete all tracks before the current song
+        playlist = self.mpc.playlistinfo()
+        currentsong = self.mpc.currentsong()
+        total = 0
+        if currentsong:
+            end = int(currentsong["pos"])
+            tracks = playlist[0:end]
+            for track in tracks:
+                print "Taking track {0} out of the playlist".format(track["id"])
+                self.mpc.deleteid(track["id"])
+                total = total + 1
+
+        # Calculate if we need some new tunes
+        max_songs = settings.PLAYLIST_SIZE - (len(playlist) - total)
+        if max_songs == 0:
+            return
+
+        # Grab said music and queue it up
+        cur = self.db.cursor()
+        cur.execute("SELECT filename FROM songlist ORDER BY RANDOM()")
+        counter = 0
+        row = cur.fetchone()
+        while row is not None and counter < max_songs:
+            has = self.mpc.playlistfind("filename", row[0])
+            if len(has) == 0:
+                print u"Adding filename {0}".format(row[0])
+                self.mpc.add(row[0])
+                counter = counter + 1
+            else:
+                print u"Filename {0} is detected as already in the playlist, skipping".format(row[0])
+            row = cur.fetchone()
+            
     def initialize_db(self):
         print "Start initialize of DB...getting songs"
         songs = self.mpc.listallinfo()
@@ -41,7 +71,7 @@ class MPDInterface():
         
         print "Start iteration..."
         for song in songs:
-            if "file" in song and "title" in song:
+            if "file" in song and "title" in song and "album" in song:
                 if song["file"] not in loaded_songs:
                     if "date" not in song:
                         song["date"] = ""
@@ -61,15 +91,18 @@ class MPDInterface():
                         cur.execute("INSERT INTO songlist (filename, artist, album, title, track, date, lastmodified) VALUES (?,?,?,?,?,?,?)", \
                                 (song["file"], song["artist"], song["album"], song["title"], str(song["track"]), str(song["date"]),
                                 str(int(song["lastmodified"]))))
-                    except:
+                    except Exception as e:
                         print "Failed to import song: "
                         print song
+                        raise e
                         sys.exit(0)
 
         print "Commit all that stuff"
         self.db.commit()
         print "End initialize of DB"
 
+        print "Reloading playlist..."
+        self._reload_playlist()
         print "Requeuing..."
         self._requeue()
         print "End requeue"
@@ -81,6 +114,8 @@ class MPDInterface():
             try:
                 self.mpc.disconnect()
             except mpd.ConnectionError:
+                pass
+            except socketerror:
                 pass
 
             self.mpc.connect(settings.MPD_SERVER, settings.MPD_PORT)
@@ -170,11 +205,17 @@ class MPDInterface():
         for queueentry in queue:
             filename = queueentry[0]
             songs = self.mpc.playlistfind("filename", filename)
+            print "Found filename {0} to play".format(filename)
             if len(songs) > 0:
                 song = songs[0]
+                print "Queueing {0} to nextpos {1}".format(song["id"], unicode(nextpos))
                 self.mpc.moveid(song["id"], unicode(nextpos))
                 nextpos -= 1
-    
+            else:
+                print "Not found in playlist, adding {0} to nextpos {1}".format(filename, unicode(nextpos))
+                self.mpc.addid(filename, unicode(nextpos))
+                nextpos -= 1
+
     def listen_for_events(self):
         if not self.idling:
             self.mpc.idletimeout = 2
@@ -198,6 +239,7 @@ class MPDInterface():
         self.player_status = self.mpc.status()
         if self.player_status["state"] == "play":
             s = self.mpc.currentsong()
+            self._reload_playlist()
             sid = self.getsongid(s["file"])
             if sid is not None:
                 cur.execute("DELETE FROM queue WHERE songid = %d" % sid)
