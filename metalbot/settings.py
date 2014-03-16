@@ -17,4 +17,5 @@ ADMINS = (
             NICK
          )
 GO_TO_HELL_MSG = "Sit on it and rotate"
+CALL_MESSAGE = NICK
 PLAYLIST_SIZE=500

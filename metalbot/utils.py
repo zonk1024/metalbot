@@ -118,7 +118,15 @@ class MPDInterface():
             except socketerror:
                 pass
 
-            self.mpc.connect(settings.MPD_SERVER, settings.MPD_PORT)
+            connected = False
+            while not connected:
+                try:
+                    self.mpc.connect(settings.MPD_SERVER, settings.MPD_PORT)
+                    connected = True
+                except mpd.ConnectionError:
+                    print "Failed to connect to MPD. Waiting one sec then reconnecting..."
+                    time.sleep(1)
+            
 
     def getsongid(self, filename):
         cur = self.db.cursor()
@@ -275,7 +283,7 @@ class MPDInterface():
             return []
 
         cur = self.db.cursor()
-        cur.execute("SELECT id AS sid, filename, title, artist FROM votes INNER JOIN songlist USING (id) WHERE val > 0 ORDER BY val DESC LIMIT %s" % num)
+        cur.execute("SELECT id AS sid, album, filename, title, artist FROM votes INNER JOIN songlist USING (id) WHERE val > 0 ORDER BY val DESC LIMIT %s" % num)
         
         return self._to_dict_list(cur.fetchall())
 
@@ -289,7 +297,7 @@ class MPDInterface():
             return []
 
         cur = self.db.cursor()
-        cur.execute("SELECT id AS sid, filename, title, artist FROM songlist ORDER BY lastmodified DESC LIMIT %s" % num)
+        cur.execute("SELECT album, artist FROM songlist GROUP BY artist, album ORDER BY lastmodified DESC LIMIT %s" % num)
         
         return self._to_dict_list(cur.fetchall())
 
