@@ -123,7 +123,7 @@ class MPDInterface():
                 try:
                     self.mpc.connect(settings.MPD_SERVER, settings.MPD_PORT)
                     connected = True
-                except mpd.ConnectionError:
+                except socketerror:
                     print "Failed to connect to MPD. Waiting one sec then reconnecting..."
                     time.sleep(1)
             
@@ -233,10 +233,22 @@ class MPDInterface():
         (i, o, e) = select([self.mpc], [], [], 1)
         for sock in i:
             if sock == self.mpc:
-                event = self.mpc.fetch_idle()
-                if event[0] == "player":
-                    self._update_status()
-                self.mpc.send_idle()
+                try:
+                    print "Fetching event"
+                    event = self.mpc.fetch_idle()
+                    if event[0] == "player":
+                        print "Event is player"
+                        self._update_status()
+                    self.mpc.send_idle()
+                except mpd.ConnectionError:
+                    print "Got connection error, letting this one go for now"
+                    self.reconnect()
+                    self.idling = False
+                except mpd.PendingCommandError:
+                    print "Got pending command error"
+                    self.reconnect()
+                    self.idling = False
+
 
     def _update_status(self):
         cur = self.db.cursor()
@@ -245,6 +257,7 @@ class MPDInterface():
         except mpd.ConnectionError:
             self.reconnect()
         self.player_status = self.mpc.status()
+        print "Status of player is {0}".format(self.player_status["state"])
         if self.player_status["state"] == "play":
             s = self.mpc.currentsong()
             self._reload_playlist()
