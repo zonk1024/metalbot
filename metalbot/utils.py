@@ -54,7 +54,7 @@ class MPDInterface():
             else:
                 print u"Filename {0} is detected as already in the playlist, skipping".format(row[0])
             row = cur.fetchone()
-            
+
     def initialize_db(self):
         print "Start initialize of DB...getting songs"
         songs = self.mpc.listallinfo()
@@ -68,7 +68,7 @@ class MPDInterface():
                 break
 
             loaded_songs.append(row[0])
-        
+
         print "Start iteration..."
         for song in songs:
             if "file" in song and "title" in song and "album" in song:
@@ -107,7 +107,7 @@ class MPDInterface():
         self._requeue()
         print "End requeue"
 
-    def reconnect(self): 
+    def reconnect(self):
         try:
             self.mpc.status()
         except:
@@ -128,7 +128,7 @@ class MPDInterface():
                     time.sleep(1)
 #                except mpd.ConnectionError:
 #                    connected = True
-            
+
 
     def getsongid(self, filename):
         cur = self.db.cursor()
@@ -158,7 +158,7 @@ class MPDInterface():
             return nextsongs
         else:
             return None
-    
+
     def vote(self, songid, username, vote):
         cur = self.db.cursor()
         cur.execute("SELECT * FROM songlist WHERE id=?", (songid,))
@@ -201,7 +201,7 @@ class MPDInterface():
         self._requeue()
         cur = self.db.cursor()
         cur.execute("SELECT songid AS sid, filename, title, artist FROM queue INNER JOIN songlist ON songlist.id=queue.songid ORDER BY queue.id")
-        
+
         return self._to_dict_list(cur.fetchall())
 
     def _requeue(self):
@@ -288,18 +288,18 @@ class MPDInterface():
     def songs(self, artist, album):
         cur = self.db.cursor()
         cur.execute("SELECT * FROM songlist WHERE artist=? AND album=? ORDER BY track", (artist, album, ))
-        
+
         return self._to_dict_list(cur.fetchall())
 
     def top_upvotes(self, num):
         try:
-            num = int(num) 
+            num = int(num)
         except ValueError:
             return []
 
         cur = self.db.cursor()
         cur.execute("SELECT id AS sid, album, filename, title, artist FROM votes INNER JOIN songlist USING (id) WHERE val > 0 ORDER BY val DESC LIMIT %s" % num)
-        
+
         return self._to_dict_list(cur.fetchall())
 
     def move_to_next(self):
@@ -313,7 +313,7 @@ class MPDInterface():
 
         cur = self.db.cursor()
         cur.execute("SELECT album, artist FROM songlist GROUP BY artist, album ORDER BY lastmodified DESC LIMIT %s" % num)
-        
+
         return self._to_dict_list(cur.fetchall())
 
     def _to_dict_list(self, rows):
