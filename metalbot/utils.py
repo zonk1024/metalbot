@@ -116,7 +116,7 @@ class MPDInterface():
             except mpd.ConnectionError:
                 pass
             except socketerror:
-                pass
+                self.mpc._reset()
 
             connected = False
             while not connected:
@@ -126,6 +126,8 @@ class MPDInterface():
                 except socketerror:
                     print "Failed to connect to MPD. Waiting one sec then reconnecting..."
                     time.sleep(1)
+#                except mpd.ConnectionError:
+#                    connected = True
             
 
     def getsongid(self, filename):
@@ -213,14 +215,14 @@ class MPDInterface():
         for queueentry in queue:
             filename = queueentry[0]
             songs = self.mpc.playlistfind("filename", filename)
-            print "Found filename {0} to play".format(filename)
+            print u"Found filename {0} to play".format(filename)
             if len(songs) > 0:
                 song = songs[0]
-                print "Queueing {0} to nextpos {1}".format(song["id"], unicode(nextpos))
+                print u"Queueing {0} to nextpos {1}".format(song["id"], unicode(nextpos))
                 self.mpc.moveid(song["id"], unicode(nextpos))
                 nextpos -= 1
             else:
-                print "Not found in playlist, adding {0} to nextpos {1}".format(filename, unicode(nextpos))
+                print u"Not found in playlist, adding {0} to nextpos {1}".format(filename, unicode(nextpos))
                 self.mpc.addid(filename, unicode(nextpos))
                 nextpos -= 1
 

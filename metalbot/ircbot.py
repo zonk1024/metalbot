@@ -189,7 +189,7 @@ class MetalBot(botlib.Bot):
 
         self._privmsg(self.channel, "The top upvotes are as follows:")
         for f in upvotes:
-            self._privmsg(self.channel, u"[{0}]: {1} - {2} - {3}".format(s["sid"], s["artist"], s["album"], s["title"]))
+            self._privmsg(self.channel, u"[{0}]: {1} - {2} - {3}".format(f["sid"], f["artist"], f["album"], f["title"]))
 
     def latest_action(self, args):
         self._privmsg(self.username, "The latest available albums are as follows:")
